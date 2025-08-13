@@ -9,9 +9,10 @@ USAGE
 
 SLUG="$1"
 SS_OUT=${SS_OUT:-/vol/out}
+RVC_TAG=${SS_RVC_MODEL_TAG:-G_8200}
 OUTDIR="$SS_OUT/${SLUG}"
 BGM="${OUTDIR}/${SLUG}.instrumental.UVR-MDX-NET-Inst_HQ_3.wav"
-LEAD="${OUTDIR}/${SLUG}.lead_converted.wav"
+LEAD="${OUTDIR}/${SLUG}.lead_converted.${RVC_TAG}.wav"
 FINAL="${OUTDIR}/${SLUG}.mix_48k.wav"
 
 [ -f "$BGM" ] || { echo "[ERR] $BGM"; exit 1; }

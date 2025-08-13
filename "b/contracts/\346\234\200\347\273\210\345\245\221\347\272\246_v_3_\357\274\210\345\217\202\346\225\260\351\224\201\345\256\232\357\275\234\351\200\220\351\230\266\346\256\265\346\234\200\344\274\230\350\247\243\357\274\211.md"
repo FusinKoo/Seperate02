@@ -1,0 +1,19 @@
+# 最终契约 v3
+
+本文件为流程锁定契约镜像，描述各阶段参数与命名约束：
+
+1. 依赖安装需使用 `requirements-locked.txt`；
+2. UVR 三阶段分别使用模型 `UVR-MDX-NET-Inst_HQ_3.onnx`、`Kim_Vocal_2.onnx`、`Reverb_HQ_By_FoxJoy.onnx`，并锁定分块与重叠：
+   - 分离：`--chunk 10 --overlap 5 --fade_overlap hann`
+   - 主人声：`--chunk 8 --overlap 4 --fade_overlap hann`
+   - 去混响：`--chunk 8 --overlap 4 --fade_overlap hann`
+3. RVC 转换必须使用模型 `G_8200.pth` 与索引 `G_8200.index`，输出文件名形如 `<slug>.lead_converted.G_8200.wav`；
+4. ONNX Runtime providers 顺序必须为 `['CUDAExecutionProvider','CPUExecutionProvider']`；
+5. 输出目录包含：
+   - `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
+   - `<slug>.lead_converted.G_8200.wav`
+   - `quality_report.json`
+   - `trace.json`
+6. 若设置 `SS_FORCE_CPU=1`，将强制使用 CPU 推理，仅用于调试。
+
+此契约用于审计与复现，详情见项目 README。

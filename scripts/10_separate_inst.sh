@@ -20,11 +20,15 @@ mkdir -p "$BASE/sep1" "$OUTDIR"
 
 MODEL_DIR="$SS_MODELS_DIR/UVR"
 MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"
+DEVICE_OPT=""
+[[ "${SS_FORCE_CPU:-0}" == 1 ]] && DEVICE_OPT="--device cpu"
 
 cd "$BASE/sep1"
 audio-separator "$IN" \
   --model_filename "$MODEL" \
-  --model_file_dir "$MODEL_DIR"
+  --model_file_dir "$MODEL_DIR" \
+  --chunk 10 --overlap 5 --fade_overlap hann \
+  ${DEVICE_OPT:-}
 
 INST=$(ls -1 *Instrumental*.wav 2>/dev/null | head -n1)
 VOX=$(ls -1 *Vocals*.wav 2>/dev/null | head -n1)
