@@ -1,57 +1,47 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C.UTF-8
 
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
-  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
-  exit 2
+SS_OUT=${SS_OUT:-/vol/out}
+SS_WORK=${SS_WORK:-/vol/work}
+SS_GDRIVE_REMOTE=${SS_GDRIVE_REMOTE:-gdrive}
+SS_GDRIVE_ROOT=${SS_GDRIVE_ROOT:-Seperate02}
+
+slug="$1"; [[ -n "$slug" ]] || { echo "[ERR] need slug"; exit 1; }
+workdir="$SS_WORK/$slug"; srcf="$workdir/.src"
+[[ -f "$srcf" ]] || { echo "[ERR] missing $srcf"; exit 1; }
+
+# 读取源信息
+declare -A meta; while IFS='=' read -r k v; do meta[$k]="$v"; done < "$srcf"
+remote_path="${meta[remote_path]}"
+fname="${meta[original_name]}"
+outdir="$SS_OUT/$slug"
+
+[[ -d "$outdir" ]] || { echo "[ERR] missing outdir: $outdir"; exit 1; }
+
+# 上传最终产物
+rclone copy "$outdir" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/out/${slug}" --checksum --checkers=8 --transfers=8 --fast-list
+
+# 判定成功/失败
+pass=false
+if [[ -f "$outdir/quality_report.json" ]]; then
+  if grep -q '"pass"\s*:\s*true' "$outdir/quality_report.json"; then pass=true; fi
 fi
-# shellcheck source=env.sh
-source "$SCRIPT_DIR/env.sh"
 
-REMOTE_OUT="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/out"
-REMOTE_ARCH="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/out-archives"
-rclone mkdir "$REMOTE_OUT" >/dev/null 2>&1 || true
-mkdir -p "$SS_INBOX/processed" "$SS_INBOX/failed"
-
-slug_list=("$@")
-if [ ${#slug_list[@]} -eq 0 ]; then
-  mapfile -t slug_list < <(find "$SS_OUT" -mindepth 1 -maxdepth 1 -type d -printf '%f\n')
+if $pass; then
+  # 移动原始文件到 processed
+  rclone moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/processed/${fname}" || true
+else
+  # 失败：移动到 failed 并写原因
+  rclone moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}" || true
+  reason_file="/tmp/${slug}.reason.txt"
+  echo "Seperate02 failure for $slug" > "$reason_file"
+  [[ -f "$outdir/quality_report.json" ]] && {
+    echo "--- quality_report.json ---" >> "$reason_file"
+    sed -n '1,120p' "$outdir/quality_report.json" >> "$reason_file"
+  }
+  rclone copyto "$reason_file" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}.reason.txt"
+  rm -f "$reason_file"
 fi
 
-for slug in "${slug_list[@]}"; do
-  outdir="$SS_OUT/$slug"
-  workdir="$SS_WORK/$slug"
-  [ -d "$outdir" ] || continue
-  srcfile=$(cat "$workdir/.src" 2>/dev/null || echo '')
-  orig_name="${srcfile##*::}"
-  local_in="$(find "$SS_INBOX" -maxdepth 1 -type f -name "$slug.*" | head -n1)"
-  quality="$outdir/quality_report.json"
-  pass=0
-  if [ -f "$quality" ]; then
-    pass=$(jq -r '.pass' "$quality" 2>/dev/null || echo 0)
-  fi
-  if [ "$pass" = "1" ] || [ "$pass" = "true" ]; then
-    rclone mkdir "$REMOTE_OUT/$slug" >/dev/null 2>&1 || true
-    rclone copy "$outdir" "$REMOTE_OUT/$slug" --checksum --fast-list
-    if [ "${SS_ARCHIVE_OUT:-0}" = "1" ]; then
-      ts=$(date -u +%Y%m%dT%H%M%SZ)
-      rclone copy "$outdir" "$REMOTE_ARCH/$ts/$slug" --checksum --fast-list
-    fi
-    if [ -n "$local_in" ]; then
-      mv "$local_in" "$SS_INBOX/processed/${orig_name:-$(basename "$local_in")}" 2>/dev/null || true
-    fi
-  else
-    reason="processing failed"
-    if [ -f "$quality" ]; then
-      reason=$(jq -r '.length_drift_ratio' "$quality" 2>/dev/null)
-    fi
-    if [ -n "$local_in" ]; then
-      mv "$local_in" "$SS_INBOX/failed/${orig_name:-$(basename "$local_in")}" 2>/dev/null || true
-      echo "$reason" > "$SS_INBOX/failed/${orig_name:-$(basename "$local_in")}.reason.txt"
-    fi
-  fi
-  rm -f "$workdir/.lock"
-done
-
-echo "[OK] pushed outputs"
+echo "[PUSHED] $slug → out/${slug} (pass=$pass)"
