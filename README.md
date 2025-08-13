@@ -184,6 +184,7 @@ $SS_MODELS_DIR/
 
 如果你使用不同文件名/模型，请在对应 CLI 内**硬编码**并随 `trace.json` 记录。
 UVR 使用 `audio-separator 0.35.2`，参数映射：`--chunk`=分块大小、`--overlap`=重叠、`--fade_overlap`=窗函数。各步骤常量如下：
+
 - 分离：`--chunk 10 --overlap 5 --fade_overlap hann`
 - 主人声：`--chunk 8 --overlap 4 --fade_overlap hann`
 - 去混响：`--chunk 8 --overlap 4 --fade_overlap hann`

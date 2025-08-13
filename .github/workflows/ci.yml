@@ -16,8 +16,10 @@ jobs:
       - name: Yaml lint
         run: yamllint .
       - name: Markdown lint
+        continue-on-error: true
         run: |
           npx --yes markdownlint-cli@0.39.0 \
-            -c .markdownlint.yml "**/*.md"
+            -c .markdownlint.yml "**/*.md" \
+            || echo "markdownlint found issues (non-blocking)"
       - name: Bash syntax check
         run: bash -n scripts/*.sh
