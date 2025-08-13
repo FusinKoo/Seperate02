@@ -9,7 +9,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y shellcheck yamllint
-          npm install -g markdownlint-cli
       - name: Shellcheck (-x)
         run: |
           shopt -s globstar nullglob
@@ -17,6 +16,7 @@ jobs:
       - name: Yaml lint
         run: yamllint .
       - name: Markdown lint
-        run: markdownlint '**/*.md'
+        run: |
+          npx --yes markdownlint-cli@0.39.0 -c .markdownlint.yml "**/*.md"
       - name: Bash syntax check
         run: bash -n scripts/*.sh
