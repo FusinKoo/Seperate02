@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
+  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
+  exit 2
+fi
+# shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
 REMOTE_OUT="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/out"
@@ -18,7 +24,6 @@ for slug in "${slug_list[@]}"; do
   workdir="$SS_WORK/$slug"
   [ -d "$outdir" ] || continue
   srcfile=$(cat "$workdir/.src" 2>/dev/null || echo '')
-  rpath="${srcfile%%::*}"
   orig_name="${srcfile##*::}"
   local_in="$(find "$SS_INBOX" -maxdepth 1 -type f -name "$slug.*" | head -n1)"
   quality="$outdir/quality_report.json"

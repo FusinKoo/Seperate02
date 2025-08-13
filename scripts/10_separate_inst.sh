@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
+  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
+  exit 2
+fi
+# shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
 usage(){ cat <<USAGE
@@ -28,8 +34,8 @@ audio-separator "$IN" \
   --chunk 10 --overlap 5 --fade_overlap hann \
   ${DEVICE_OPT:-}
 
-INST=$(ls -1 *Instrumental*.wav 2>/dev/null | head -n1)
-VOX=$(ls -1 *Vocals*.wav 2>/dev/null | head -n1)
+INST="$(find . -maxdepth 1 -type f -name '*Instrumental*.wav' -print | sort | head -n1)"
+VOX="$(find . -maxdepth 1 -type f -name '*Vocals*.wav' -print | sort | head -n1)"
 [ -n "${INST:-}" ] && mv "$INST" "$BASE/01_accompaniment.wav"
 [ -n "${VOX:-}" ] && mv "$VOX"  "$BASE/01_vocals_mix.wav"
 

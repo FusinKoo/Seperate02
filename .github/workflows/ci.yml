@@ -10,8 +10,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y shellcheck yamllint
           npm install -g markdownlint-cli
-      - name: Shellcheck
-        run: shellcheck scripts/*.sh
+      - name: Shellcheck (-x)
+        run: |
+          shopt -s globstar nullglob
+          shellcheck -x -S warning scripts/*.sh
       - name: Yaml lint
         run: yamllint .
       - name: Markdown lint

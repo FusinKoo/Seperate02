@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
+  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
+  exit 2
+fi
+# shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
 REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/songs"
