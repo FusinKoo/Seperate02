@@ -1,28 +1,30 @@
 # Seperate02
-# Seperate02 — CLS（契约锁定串行流水线）
+
+## Seperate02 — CLS（契约锁定串行流水线）
 
 **当前版本：契约 v3**（详见 [最终契约](contracts/最终契约_v_3_（参数锁定｜逐阶段最优解）.md)）
 
-> **一句话**：把整条音频处理链按“人类操作式”拆成**独立 CLI 步骤**（单进程、磁盘交接、参数全锁定），逐段校验与落盘，最大化稳定性与可复现性。
+> **一句话**：把整条音频处理链按“人类操作式”拆成**独立 CLI 步骤**（单进程、磁盘交接、参数全锁定），逐段校验与落盘，
+> 最大化稳定性与可复现性。
 
 ## 目录
 
-* [背景与目标](#背景与目标)
-* [整体流程（Stepflow）](#整体流程stepflow)
-* [核心特性](#核心特性)
-* [目录结构](#目录结构)
-* [快速开始（Quick Start）](#快速开始quick-start)
-* [环境与依赖](#环境与依赖)
-* [模型与路径约定](#模型与路径约定)
-* [运行入口](#运行入口)
-* [编排器（ssflow）与 Manifest](#编排器ssflow与-manifest)
-* [CLI 步骤参考](#cli-步骤参考)
-* [质量护栏与报告](#质量护栏与报告)
-* [并发与吞吐策略](#并发与吞吐策略)
-* [失败恢复与可复现](#失败恢复与可复现)
-* [Roadmap](#roadmap)
-* [FAQ](#faq)
-* [许可与第三方声明](#许可与第三方声明)
+- [背景与目标](#背景与目标)
+- [整体流程（Stepflow）](#整体流程stepflow)
+- [核心特性](#核心特性)
+- [目录结构](#目录结构)
+- [快速开始（Quick Start）](#快速开始quick-start)
+- [环境与依赖](#环境与依赖)
+- [模型与路径约定](#模型与路径约定)
+- [运行入口](#运行入口)
+- [编排器（ssflow）与 Manifest](#编排器ssflow与-manifest)
+- [CLI 步骤参考](#cli-步骤参考)
+- [质量护栏与报告](#质量护栏与报告)
+- [并发与吞吐策略](#并发与吞吐策略)
+- [失败恢复与可复现](#失败恢复与可复现)
+- [Roadmap](#roadmap)
+- [FAQ](#faq)
+- [许可与第三方声明](#许可与第三方声明)
 
 ---
 
@@ -30,9 +32,9 @@
 
 **Seperate02** 是对上一代“把多模型揉进一个长进程”的彻底重构：
 
-* 每一步骤都是**单独的命令行程序（CLI）**，读一个文件→写一个文件，**固定参数/固定模型**（契约锁定）。
-* 步骤之间只通过**磁盘文件交接**，每步结束立刻做**护栏校验**（采样率/时长漂移/LUFS/峰值/能量等）。
-* 任意一步失败立即停止，**之前已通过的产物保留**，定位与恢复成本极低。
+- 每一步骤都是**单独的命令行程序（CLI）**，读一个文件→写一个文件，**固定参数/固定模型**（契约锁定）。
+- 步骤之间只通过**磁盘文件交接**，每步结束立刻做**护栏校验**（采样率/时长漂移/LUFS/峰值/能量等）。
+- 任意一步失败立即停止，**之前已通过的产物保留**，定位与恢复成本极低。
 
 适用场景：本地 Mac、Runpod、Colab、或任意无交互的批处理环境。
 
@@ -40,7 +42,7 @@
 
 ## 整体流程（Stepflow）
 
-```
+```text
 [输入歌曲] → ① UVR 分离(人声/伴奏)
               → ② UVR 主人声提取
               → ③ UVR 去混响/降噪
@@ -50,19 +52,19 @@
 
 **锁定采样率策略**：
 
-* UVR 全链内部统一 **44.1 kHz / mono / float32**；
-* RVC 合成 **48 kHz**；Hubert/RMVPE **16 kHz**（内部派生）；
-* 最终交付：**48 kHz / 24-bit PCM**。
+- UVR 全链内部统一 **44.1 kHz / mono / float32**；
+- RVC 合成 **48 kHz**；Hubert/RMVPE **16 kHz**（内部派生）；
+- 最终交付：**48 kHz / 24-bit PCM**。
 
 ---
 
 ## 核心特性
 
-* **契约锁定（Contract-Locked）**：模型、参数、窗口、overlap、响度目标全写死，避免“选项=错误面”。
-* **进程隔离**：一步一进程，显存/线程/缓存随进程销毁，避免资源污染与随机报错。
-* **护栏严格**：采样率、时长漂移（≤0.5%）、LUFS、峰值上限、能量下限全部硬性校验。
-* **可测可复现**：每步产物 + `trace.json` + `quality_report.json`；失败可断点续跑。
-* **无 GUI 依赖**：纯 CLI + 静态 HTML 报告（可选），适合自动化与规模化。
+- **契约锁定（Contract-Locked）**：模型、参数、窗口、overlap、响度目标全写死，避免“选项=错误面”。
+- **进程隔离**：一步一进程，显存/线程/缓存随进程销毁，避免资源污染与随机报错。
+- **护栏严格**：采样率、时长漂移（≤0.5%）、LUFS、峰值上限、能量下限全部硬性校验。
+- **可测可复现**：每步产物 + `trace.json` + `quality_report.json`；失败可断点续跑。
+- **无 GUI 依赖**：纯 CLI + 静态 HTML 报告（可选），适合自动化与规模化。
 
 ---
 
@@ -70,7 +72,7 @@
 
 > 初始仓库为空；以下为**目标结构**（建议用自动化脚手架或在 PR 中逐步落地）。
 
-```
+```text
 Seperate02/
 ├─ README.md
 ├─ requirements-locked.txt           # 版本锁（建议）
@@ -146,18 +148,18 @@ bash scripts/run_one.sh demo
 
 输出：
 
-* `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
-* `<slug>.lead_converted.G_8200.wav`
-* `quality_report.json`、`trace.json`
+- `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
+- `<slug>.lead_converted.G_8200.wav`
+- `quality_report.json`、`trace.json`
 
 ---
 
 ## 环境与依赖
 
-* **操作系统**：Linux / macOS（Apple Silicon 可用 CPU 跑通，建议 GPU 环境）
-* **Python**：3.10+（建议 3.10/3.11）
-* **GPU**（建议）：CUDA 12.x + ONNX Runtime GPU 版（`onnxruntime-gpu`）
-* **离线安装**（可选）：使用 `wheelhouse/` 缓存 `pip wheel -r requirements-locked.txt` 生成的依赖包
+- **操作系统**：Linux / macOS（Apple Silicon 可用 CPU 跑通，建议 GPU 环境）
+- **Python**：3.10+（建议 3.10/3.11）
+- **GPU**（建议）：CUDA 12.x + ONNX Runtime GPU 版（`onnxruntime-gpu`）
+- **离线安装**（可选）：使用 `wheelhouse/` 缓存 `pip wheel -r requirements-locked.txt` 生成的依赖包
 
 > **注意**：本仓库不包含任何第三方模型权重；请在本地/私有存储中按约定路径放置。
 
@@ -167,7 +169,7 @@ bash scripts/run_one.sh demo
 
 通过 `SS_MODELS_DIR` 作为根目录，按以下结构放置（示例）：
 
-```
+```text
 $SS_MODELS_DIR/
 ├─ UVR/
 │  ├─ UVR-MDX-NET-Inst_HQ_3.onnx        # 步骤① 分离
@@ -193,7 +195,7 @@ $SS_MODELS_DIR/
 
 ### 极简脚本（推荐）
 
-```
+```bash
 # 单首
 # 显式路径：
 ./scripts/run_one.sh <input_file> <rvc_pth> <index> [v1|v2]
@@ -250,87 +252,87 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 
 ### ① `uvr_separate`
 
-* **输入**：`<slug>.wav`
-* **输出**：`vocals_44k.f32.wav`、`instrumental_44k.f32.wav`
-* **锁定**：SR=44.1k、mono、float32；chunk=10.0s、overlap=5.0s、Hann 窗；无归一化；ORT providers 固定为 `CUDA,CPU`。
-* **失败即退出码非 0**；日志写入 `trace.json`。
+- **输入**：`<slug>.wav`
+- **输出**：`vocals_44k.f32.wav`、`instrumental_44k.f32.wav`
+- **锁定**：SR=44.1k、mono、float32；chunk=10.0s、overlap=5.0s、Hann 窗；无归一化；ORT providers 固定为 `CUDA,CPU`。
+- **失败即退出码非 0**；日志写入 `trace.json`。
 
 ### ② `uvr_lead_extract`
 
-* **输入**：`vocals_44k.f32.wav`
-* **输出**：`lead_44k.f32.wav`
-* **锁定**：chunk=8.0s、overlap=4.0s；后处理阈值/平滑/最小时长按契约固定。
+- **输入**：`vocals_44k.f32.wav`
+- **输出**：`lead_44k.f32.wav`
+- **锁定**：chunk=8.0s、overlap=4.0s；后处理阈值/平滑/最小时长按契约固定。
 
 ### ③ `uvr_dereverb`
 
-* **输入**：`lead_44k.f32.wav`
-* **输出**：`lead_clean_44k.f32.wav`
-* **锁定**：chunk=8.0s、overlap=4.0s；100% 干声输出。
+- **输入**：`lead_44k.f32.wav`
+- **输出**：`lead_clean_44k.f32.wav`
+- **锁定**：chunk=8.0s、overlap=4.0s；100% 干声输出。
 
 ### ④ `rvc_convert_locked`
 
-* **输入**：`lead_clean_44k.f32.wav`
-* **输出**：`<slug>.lead_converted.G_8200.wav`（48 kHz / 24-bit PCM）
-* **锁定**：
+- **输入**：`lead_clean_44k.f32.wav`
+- **输出**：`<slug>.lead_converted.G_8200.wav`（48 kHz / 24-bit PCM）
+- **锁定**：
 
-  * RVC 主干 48k；Hubert/RMVPE 16k（内部派生）。
-  * `f0_method=rmvpe`、`index_rate=0.75`、`protect=0.33`、`rms_mix_rate=0.0`、`pitch_shift=0`。
-  * `chunk_size=64`、`crossfade=0.05s`、`device=cuda`；强制启用指定 `.index`。
+  - RVC 主干 48k；Hubert/RMVPE 16k（内部派生）。
+  - `f0_method=rmvpe`、`index_rate=0.75`、`protect=0.33`、`rms_mix_rate=0.0`、`pitch_shift=0`。
+  - `chunk_size=64`、`crossfade=0.05s`、`device=cuda`；强制启用指定 `.index`。
 
 ### ⑤ `finalize_loudness`
 
-* **输入**：
+- **输入**：
 
-  * 伴奏：`instrumental_44k.f32.wav`（内部重采样→48k/24-bit）
-  * 主唱：`<slug>.lead_converted.G_8200.wav`
-* **输出**：
+  - 伴奏：`instrumental_44k.f32.wav`（内部重采样→48k/24-bit）
+  - 主唱：`<slug>.lead_converted.G_8200.wav`
+- **输出**：
 
-  * `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`（48k/24-bit）
-  * `quality_report.json`
-* **锁定**：目标 LUFS：伴奏 **-20.0 LUFS**、人声 **-18.5 LUFS**；**峰值 ≤ -3 dBFS**；不合格则按“**双轨同比例缩放**”回整。
+  - `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`（48k/24-bit）
+  - `quality_report.json`
+- **锁定**：目标 LUFS：伴奏 **-20.0 LUFS**、人声 **-18.5 LUFS**；**峰值 ≤ -3 dBFS**；不合格则按“**双轨同比例缩放**”回整。
 
 ### 护栏：`guard_check`
 
-* 校验：SR、声道、样本长度（相对漂移 ≤ 0.5%）、峰值上限、能量下限。
-* 不通过立即 `exit 1` 并写失败原因。
+- 校验：SR、声道、样本长度（相对漂移 ≤ 0.5%）、峰值上限、能量下限。
+- 不通过立即 `exit 1` 并写失败原因。
 
 ### 追踪：`trace_writer`
 
-* 每步记录：模型/版本/路径、ORT providers、耗时、输入输出哈希、采样率/长度摘要、退出码。
+- 每步记录：模型/版本/路径、ORT providers、耗时、输入输出哈希、采样率/长度摘要、退出码。
 
 ---
 
 ## 质量护栏与报告
 
-* **`quality_report.json`**：最终响度、峰值、DR/crest、时长对齐、是否触发回整；
-* **`trace.json`**：全链路元数据（步骤顺序/模型/参数/耗时/错误栈）；
-* **（可选）`report.html`**：只读静态报告，渲染上述 JSON；**与运行解耦**，不影响稳定性。
+- **`quality_report.json`**：最终响度、峰值、DR/crest、时长对齐、是否触发回整；
+- **`trace.json`**：全链路元数据（步骤顺序/模型/参数/耗时/错误栈）；
+- **（可选）`report.html`**：只读静态报告，渲染上述 JSON；**与运行解耦**，不影响稳定性。
 
 ---
 
 ## 并发与吞吐策略
 
-* **同一首歌**：严格串行（避免资源污染）。
-* **多首歌**：进程级并行（如 `xargs -P 4` 或 Makefile 的 `-j`），由 OS/GPU 调度；显存更可控。
-* 建议按显存容量与模型峰值占用评估 `SS_PARALLEL_JOBS`。
+- **同一首歌**：严格串行（避免资源污染）。
+- **多首歌**：进程级并行（如 `xargs -P 4` 或 Makefile 的 `-j`），由 OS/GPU 调度；显存更可控。
+- 建议按显存容量与模型峰值占用评估 `SS_PARALLEL_JOBS`。
 
 ---
 
 ## 失败恢复与可复现
 
-* 任一步失败仅影响该步及其下游；**中间件与上游结果保留**。
-* 重新执行会**从最近的未通过产物继续**。
-* `trace.json` 持久化所有关键元数据，确保复现实验与问题定位。
+- 任一步失败仅影响该步及其下游；**中间件与上游结果保留**。
+- 重新执行会**从最近的未通过产物继续**。
+- `trace.json` 持久化所有关键元数据，确保复现实验与问题定位。
 
 ---
 
 ## Roadmap
 
-* [ ] 生成 `report.html` 的静态报告器（仅渲染 JSON）
-* [ ] 可选的 Snakemake/Make 编排（不改变现有入口）
-* [ ] Docker 镜像（锁定 CUDA/ORT/Python 版本）
-* [ ] CI：仅做 lint/构建，不跑模型（避免泄露与不稳定）
-* [ ] 指标采集：批处理成功率、耗时分布、显存峰值（写入 trace）
+- [ ] 生成 `report.html` 的静态报告器（仅渲染 JSON）
+- [ ] 可选的 Snakemake/Make 编排（不改变现有入口）
+- [ ] Docker 镜像（锁定 CUDA/ORT/Python 版本）
+- [ ] CI：仅做 lint/构建，不跑模型（避免泄露与不稳定）
+- [ ] 指标采集：批处理成功率、耗时分布、显存峰值（写入 trace）
 
 ---
 
@@ -349,9 +351,9 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 
 ## 许可与第三方声明
 
-* 建议采用 **MIT License**（或按你团队要求替换）。
-* 本仓库不包含任何第三方模型权重；使用者需自行遵循相应许可条款。
-* 任何品牌与模型名称仅用于说明，不代表背书。
+- 建议采用 **MIT License**（或按你团队要求替换）。
+- 本仓库不包含任何第三方模型权重；使用者需自行遵循相应许可条款。
+- 任何品牌与模型名称仅用于说明，不代表背书。
 
 ---
 
