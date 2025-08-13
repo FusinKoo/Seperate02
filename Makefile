@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock sanity demo env one batch backup
+.PHONY: help setup-lock sanity demo env one pull batch push backup
 
 help:
 > @echo "Targets:"
@@ -8,7 +8,9 @@ help:
 > @echo "  demo        - run demo song with fixed paths"
 > @echo "  env         - show key environment vars"
 > @echo "  one song=<slug>"
+> @echo "  pull        - pull songs from gdrive"
 > @echo "  batch model=<pth> index=<idx> ver=<v1|v2>"
+> @echo "  push        - push processed outputs"
 > @echo "  backup      - backup outputs to gdrive"
 
 setup-lock:
@@ -30,8 +32,14 @@ env:
 one:
 > bash scripts/run_one.sh $(song)
 
+pull:
+> bash scripts/gdrive_pull_inputs.sh
+
 batch:
 > bash scripts/run_batch.sh $(model) $(index) $(ver)
+
+push:
+> bash scripts/gdrive_push_outputs.sh
 
 backup:
 > bash scripts/90_backup_gdrive.sh

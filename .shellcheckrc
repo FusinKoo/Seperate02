@@ -1,0 +1,4 @@
+# 允许 ShellCheck 解析被 source 的外部文件
+external-sources=true
+# 将默认严重级别设为 warning（不影响 error 的捕获）
+severity=warning
