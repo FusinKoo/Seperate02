@@ -2,19 +2,24 @@
 set -euo pipefail
 
 usage(){ cat <<USAGE
-Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> [index] [v1|v2]
+Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
 USAGE
 }
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
 source "$(dirname "$0")/../.venv/bin/activate"
 
-SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="${3:-}"; RVC_VER="${4:-v2}"
+SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="$3"; RVC_VER="${4:-v2}"
 SS_WORK=${SS_WORK:-/vol/work}
 SS_OUT=${SS_OUT:-/vol/out}
 SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
+SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
 BASE="$SS_WORK/${SLUG}"; OUTDIR="$SS_OUT/${SLUG}"; mkdir -p "$OUTDIR"
 IN="$BASE/03_main_vocal_dry.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
+
+[[ -f "$RVC_PTH" ]] || { echo "[ERR] RVC model not found: $RVC_PTH. Place model in $SS_MODELS_DIR/RVC/ or set SS_RVC_PTH"; exit 1; }
+[[ -f "$RVC_INDEX" ]] || { echo "[ERR] RVC index not found: $RVC_INDEX. Place index in $SS_MODELS_DIR/RVC/ or set SS_RVC_INDEX"; exit 1; }
+[[ "$RVC_VER" == v1 || "$RVC_VER" == v2 ]] || { echo "[ERR] RVC version must be v1 or v2"; exit 1; }
 
 export RVC_ASSETS_DIR="$SS_ASSETS_DIR"
 
@@ -22,7 +27,7 @@ python -m rvc_python cli \
   -i "$IN" \
   -o "$OUTDIR/04_vocal_converted.wav" \
   -mp "$RVC_PTH" \
-  ${RVC_INDEX:+-ip "$RVC_INDEX"} \
+  -ip "$RVC_INDEX" \
   -v "$RVC_VER" \
   -de cuda:0 \
   -me rmvpe \

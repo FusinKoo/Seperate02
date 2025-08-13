@@ -15,11 +15,15 @@ SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
 BASE="$SS_WORK/${SLUG}"; mkdir -p "$BASE/sep2"
 IN="$BASE/01_vocals_mix.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
 MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Kim_Vocal_2.onnx"
+DEVICE_OPT=""
+[[ "${SS_FORCE_CPU:-0}" == 1 ]] && DEVICE_OPT="--device cpu"
 
 cd "$BASE/sep2"
 audio-separator "$IN" \
   --model_filename "$MODEL" \
-  --model_file_dir "$MODEL_DIR"
+  --model_file_dir "$MODEL_DIR" \
+  --chunk 8 --overlap 4 --fade_overlap hann \
+  ${DEVICE_OPT:-}
 
 MAIN=$(ls -1 *Vocals*.wav 2>/dev/null | head -n1)
 REST=$(ls -1 *Instrumental*.wav 2>/dev/null | head -n1)

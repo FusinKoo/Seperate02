@@ -3,10 +3,10 @@ set -euo pipefail
 
 usage(){ cat <<USAGE
 Usage:
-  scripts/run_one.sh <input_file> <rvc_model.pth> [index] [v1|v2] [slug]
-  scripts/run_one.sh <slug>  # requires SS_INBOX and SS_RVC_PTH
+  scripts/run_one.sh <input_file> <rvc_model.pth> <rvc.index> [v1|v2] [slug]
+  scripts/run_one.sh <slug>  # requires SS_INBOX, SS_RVC_PTH and SS_RVC_INDEX
 Examples:
-  bash scripts/run_one.sh /vol/inbox/foo.wav /vol/models/RVC/G.pth
+  bash scripts/run_one.sh /vol/inbox/foo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index
   bash scripts/run_one.sh foo
 USAGE
 }
@@ -18,10 +18,10 @@ SS_OUT=${SS_OUT:-/vol/out}
 SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
 SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 
-if [[ $# -ge 2 && -f "$1" ]]; then
+if [[ $# -ge 3 && -f "$1" ]]; then
   IN="$1"
   RVC_PTH="$2"
-  RVC_INDEX="${3:-}"
+  RVC_INDEX="$3"
   RVC_VER="${4:-v2}"
   SLUG="${5:-$(basename "${IN%.*}")}"
 elif [[ $# -eq 1 ]]; then
@@ -31,23 +31,30 @@ elif [[ $# -eq 1 ]]; then
   done
   [[ -n "${IN:-}" ]] || { echo "[ERR] input $SLUG.* not found in $SS_INBOX" >&2; exit 1; }
   RVC_PTH="${SS_RVC_PTH:?SS_RVC_PTH not set}"
-  RVC_INDEX="${SS_RVC_INDEX:-}"
+  RVC_INDEX="${SS_RVC_INDEX:?SS_RVC_INDEX not set}"
   RVC_VER="${SS_RVC_VER:-v2}"
 else
   usage; exit 1
 fi
 
 [[ -f "$IN" ]] || { echo "[ERR] missing input $IN" >&2; exit 1; }
-[[ -f "$RVC_PTH" ]] || { echo "[ERR] missing RVC model $RVC_PTH" >&2; exit 1; }
-[[ -z "$RVC_INDEX" || -f "$RVC_INDEX" ]] || { echo "[ERR] bad RVC index $RVC_INDEX" >&2; exit 1; }
+[[ -f "$RVC_PTH" ]] || { echo "[ERR] RVC model not found: $RVC_PTH. Place G_8200.pth in $SS_MODELS_DIR/RVC/ or set SS_RVC_PTH" >&2; exit 1; }
+[[ -f "$RVC_INDEX" ]] || { echo "[ERR] RVC index not found: $RVC_INDEX. Place G_8200.index in $SS_MODELS_DIR/RVC/ or set SS_RVC_INDEX" >&2; exit 1; }
 [[ "$RVC_VER" == v1 || "$RVC_VER" == v2 ]] || { echo "[ERR] RVC version must be v1 or v2" >&2; exit 1; }
 
-export SS_RVC_PTH="$RVC_PTH" SS_RVC_INDEX="$RVC_INDEX" SS_RVC_VER="$RVC_VER"
+RVC_TAG=$(basename "${RVC_PTH%.*}")
+export SS_RVC_PTH="$RVC_PTH" SS_RVC_INDEX="$RVC_INDEX" SS_RVC_VER="$RVC_VER" SS_RVC_MODEL_TAG="$RVC_TAG"
 
-bash scripts/10_separate_inst.sh "$IN" "$SLUG"
-bash scripts/20_extract_main.sh "$SLUG"
-bash scripts/30_dereverb_denoise.sh "$SLUG"
-bash scripts/40_rvc_convert.sh "$SLUG" "$RVC_PTH" "$RVC_INDEX" "$RVC_VER"
+TMP_TIME="$SS_WORK/$SLUG/steps_time.json"
+mkdir -p "$SS_WORK/$SLUG"
+
+start=$(date +%s); bash scripts/10_separate_inst.sh "$IN" "$SLUG"; end=$(date +%s); s1=$((end-start))
+start=$(date +%s); bash scripts/20_extract_main.sh "$SLUG"; end=$(date +%s); s2=$((end-start))
+start=$(date +%s); bash scripts/30_dereverb_denoise.sh "$SLUG"; end=$(date +%s); s3=$((end-start))
+start=$(date +%s); bash scripts/40_rvc_convert.sh "$SLUG" "$RVC_PTH" "$RVC_INDEX" "$RVC_VER"; end=$(date +%s); s4=$((end-start))
+
+printf '{"sep_inst":%d,"extract_main":%d,"dereverb":%d,"rvc":%d}\n' "$s1" "$s2" "$s3" "$s4" > "$TMP_TIME"
+
 python scripts/50_finalize_and_report.py --slug "$SLUG"
 # optional:
 # bash scripts/60_optional_mixdown.sh "$SLUG"

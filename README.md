@@ -1,6 +1,8 @@
 # Seperate02
 # Seperate02 — CLS（契约锁定串行流水线）
 
+**当前版本：契约 v3**（详见 [最终契约](contracts/最终契约_v_3_（参数锁定｜逐阶段最优解）.md)）
+
 > **一句话**：把整条音频处理链按“人类操作式”拆成**独立 CLI 步骤**（单进程、磁盘交接、参数全锁定），逐段校验与落盘，最大化稳定性与可复现性。
 
 ## 目录
@@ -136,15 +138,17 @@ cp .env.example .env
 5. **跑一首 Demo**
 
 ```bash
-bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth
+make setup-lock && make sanity
+bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 # 或已配置 .env 后：
 bash scripts/run_one.sh demo
 ```
 
 输出：
 
-* `<slug>.instrumental.*.wav`、`<slug>.lead_converted.*.wav`
-* `quality_report.json`、`trace.json`（可选生成 `report.html`）
+* `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
+* `<slug>.lead_converted.G_8200.wav`
+* `quality_report.json`、`trace.json`
 
 ---
 
@@ -178,6 +182,11 @@ $SS_MODELS_DIR/
 
 > 如果你使用不同文件名/模型，请在对应 CLI 内**硬编码**并随 `trace.json` 记录。
 
+> UVR 使用 `audio-separator 0.35.2`，参数映射：`--chunk`=分块大小、`--overlap`=重叠、`--fade_overlap`=窗函数。各步骤常量如下：
+> - 分离：`--chunk 10 --overlap 5 --fade_overlap hann`
+> - 主人声：`--chunk 8 --overlap 4 --fade_overlap hann`
+> - 去混响：`--chunk 8 --overlap 4 --fade_overlap hann`
+
 ---
 
 ## 运行入口
@@ -187,12 +196,12 @@ $SS_MODELS_DIR/
 ```
 # 单首
 # 显式路径：
-./scripts/run_one.sh <input_file> <rvc_pth>
+./scripts/run_one.sh <input_file> <rvc_pth> <index> [v1|v2]
 # 使用环境变量：
 ./scripts/run_one.sh <slug>
 
 # 批量（不同歌曲并发 N 首；同一首内部严格串行）：
-cat examples/batch.list | xargs -I{} -P 4 ./scripts/run_one.sh {}
+bash scripts/run_batch.sh <rvc_pth> <index> [v1|v2]
 ```
 
 ### `.env.example` 示例
