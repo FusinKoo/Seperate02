@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
@@ -7,14 +8,15 @@ SS_WORK=${SS_WORK:-/vol/work}
 SS_GDRIVE_REMOTE=${SS_GDRIVE_REMOTE:-gdrive}
 SS_GDRIVE_ROOT=${SS_GDRIVE_ROOT:-Seperate02}
 
-slug="$1"; [[ -n "$slug" ]] || { echo "[ERR] need slug"; exit 1; }
+slug="$1"; [[ -n "$slug" ]] || { echo "[ERR] need slug" >&2; exit 1; }
 workdir="$SS_WORK/$slug"; srcf="$workdir/.src"
-[[ -f "$srcf" ]] || { echo "[ERR] missing $srcf"; exit 1; }
+[[ -f "$srcf" ]] || { echo "[ERR] missing $srcf" >&2; exit 1; }
 
-# 读取源信息
-declare -A meta; while IFS='=' read -r k v; do meta[$k]="$v"; done < "$srcf"
-remote_path="${meta[remote_path]}"
-fname="${meta[original_name]}"
+# 读取源信息（安全 KV 解析）
+kv_get(){ awk -F'=' -v k="$1" '$1==k{sub(/^[^=]*=/,"" ); print; exit}' "$2"; }
+remote_path="$(kv_get remote_path "$srcf")"
+fname="$(kv_get original_name "$srcf")"
+[[ -n "$remote_path" && -n "$fname" ]] || { echo "[ERR] $srcf malformed" >&2; exit 1; }
 outdir="$SS_OUT/$slug"
 
 [[ -d "$outdir" ]] || { echo "[ERR] missing outdir: $outdir"; exit 1; }

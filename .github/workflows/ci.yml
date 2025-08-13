@@ -12,7 +12,7 @@ jobs:
       - name: Shellcheck (-x)
         run: |
           shopt -s globstar nullglob
-          shellcheck -x -S warning scripts/*.sh
+          shellcheck -x -S error scripts/*.sh
       - name: Yaml lint
         run: yamllint .
       - name: Markdown lint

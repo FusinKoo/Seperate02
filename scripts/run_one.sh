@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
@@ -7,24 +8,40 @@ SS_INBOX=${SS_INBOX:-/vol/inbox}
 SS_WORK=${SS_WORK:-/vol/work}
 SS_OUT=${SS_OUT:-/vol/out}
 
-IN="$1"; shift || true
-RVC_PTH="${1:-${SS_RVC_PTH:-}}"; RVC_INDEX="${2:-${SS_RVC_INDEX:-}}"; RVC_VER="${3:-${SS_RVC_VER:-v2}}"
+IN=${1:-}
+RVC_PTH=${2:-${SS_RVC_PTH:-}}
+RVC_INDEX=${3:-${SS_RVC_INDEX:-}}
+RVC_VER=${4:-${SS_RVC_VER:-v2}}
 
-# 解析输入
-declare slug path
-if [[ "$IN" == *"/"* ]]; then
+# 预声明，令 Shellcheck/ set -u 满意
+slug=""
+path=""
+local_inbox_path=""
+
+kv_get() { # $1=key $2=file
+  awk -F'=' -v k="$1" '$1==k{sub(/^[^=]*=/,"" ); print; exit}' "$2"
+}
+
+if [[ -z "$IN" ]]; then
+  echo "[ERR] usage: run_one.sh <input_path|slug> <rvc.pth> <rvc.index> [v1|v2]" >&2
+  exit 2
+fi
+
+if [[ "$IN" == */* ]]; then
   path="$IN"
-  base="$(basename "${path%.*}")"; slug="$base"
+  slug="$(basename "${path%.*}")"
 else
   slug="$IN"
-  srcf="$SS_WORK/$slug/.src"; [[ -f "$srcf" ]] || { echo "[ERR] $srcf not found"; exit 1; }
-  eval "$(grep -E '^(local_inbox_path|ext)=' "$srcf")"
+  srcf="$SS_WORK/$slug/.src"
+  [[ -f "$srcf" ]] || { echo "[ERR] $srcf not found" >&2; exit 1; }
+  local_inbox_path="$(kv_get local_inbox_path "$srcf")"
+  [[ -n "$local_inbox_path" ]] || { echo "[ERR] $srcf missing local_inbox_path" >&2; exit 1; }
   path="$local_inbox_path"
 fi
 
-[[ -f "$path" ]] || { echo "[ERR] input not found: $path"; exit 1; }
-[[ -n "$RVC_PTH" && -f "$RVC_PTH" ]] || { echo "[ERR] RVC .pth missing"; exit 1; }
-[[ -n "$RVC_INDEX" && -f "$RVC_INDEX" ]] || { echo "[ERR] RVC .index missing"; exit 1; }
+[[ -f "$path" ]] || { echo "[ERR] input not found: $path" >&2; exit 1; }
+[[ -n "$RVC_PTH" && -f "$RVC_PTH" ]] || { echo "[ERR] RVC .pth missing" >&2; exit 1; }
+[[ -n "$RVC_INDEX" && -f "$RVC_INDEX" ]] || { echo "[ERR] RVC .index missing" >&2; exit 1; }
 
 # 串行步骤
 bash scripts/10_separate_inst.sh "$path" "$slug"
