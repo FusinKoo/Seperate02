@@ -1,1 +1,344 @@
 # Seperate02
+# Seperate02 — CLS（契约锁定串行流水线）
+
+> **一句话**：把整条音频处理链按“人类操作式”拆成**独立 CLI 步骤**（单进程、磁盘交接、参数全锁定），逐段校验与落盘，最大化稳定性与可复现性。
+
+## 目录
+
+* [背景与目标](#背景与目标)
+* [整体流程（Stepflow）](#整体流程stepflow)
+* [核心特性](#核心特性)
+* [目录结构](#目录结构)
+* [快速开始（Quick Start）](#快速开始quick-start)
+* [环境与依赖](#环境与依赖)
+* [模型与路径约定](#模型与路径约定)
+* [运行入口](#运行入口)
+* [编排器（ssflow）与 Manifest](#编排器ssflow与-manifest)
+* [CLI 步骤参考](#cli-步骤参考)
+* [质量护栏与报告](#质量护栏与报告)
+* [并发与吞吐策略](#并发与吞吐策略)
+* [失败恢复与可复现](#失败恢复与可复现)
+* [Roadmap](#roadmap)
+* [FAQ](#faq)
+* [许可与第三方声明](#许可与第三方声明)
+
+---
+
+## 背景与目标
+
+**Seperate02** 是对上一代“把多模型揉进一个长进程”的彻底重构：
+
+* 每一步骤都是**单独的命令行程序（CLI）**，读一个文件→写一个文件，**固定参数/固定模型**（契约锁定）。
+* 步骤之间只通过**磁盘文件交接**，每步结束立刻做**护栏校验**（采样率/时长漂移/LUFS/峰值/能量等）。
+* 任意一步失败立即停止，**之前已通过的产物保留**，定位与恢复成本极低。
+
+适用场景：本地 Mac、Runpod、Colab、或任意无交互的批处理环境。
+
+---
+
+## 整体流程（Stepflow）
+
+```
+[输入歌曲] → ① UVR 分离(人声/伴奏)
+              → ② UVR 主人声提取
+              → ③ UVR 去混响/降噪
+              → ④ RVC 变声（固定模型+Index）
+              → ⑤ 重采样/响度回整 & 结果落盘
+```
+
+**锁定采样率策略**：
+
+* UVR 全链内部统一 **44.1 kHz / mono / float32**；
+* RVC 合成 **48 kHz**；Hubert/RMVPE **16 kHz**（内部派生）；
+* 最终交付：**48 kHz / 24-bit PCM**。
+
+---
+
+## 核心特性
+
+* **契约锁定（Contract-Locked）**：模型、参数、窗口、overlap、响度目标全写死，避免“选项=错误面”。
+* **进程隔离**：一步一进程，显存/线程/缓存随进程销毁，避免资源污染与随机报错。
+* **护栏严格**：采样率、时长漂移（≤0.5%）、LUFS、峰值上限、能量下限全部硬性校验。
+* **可测可复现**：每步产物 + `trace.json` + `quality_report.json`；失败可断点续跑。
+* **无 GUI 依赖**：纯 CLI + 静态 HTML 报告（可选），适合自动化与规模化。
+
+---
+
+## 目录结构
+
+> 初始仓库为空；以下为**目标结构**（建议用自动化脚手架或在 PR 中逐步落地）。
+
+```
+Seperate02/
+├─ README.md
+├─ requirements-locked.txt           # 版本锁（建议）
+├─ contracts/
+│  └─ final_contract_v3.md           # 参数/顺序/阈值的“最终契约”副本
+├─ stepflow/
+│  ├─ __init__.py
+│  └─ cli/                           # 每一步=一个独立 CLI（单进程）
+│     ├─ uvr_separate.py             # ① 人声/伴奏分离（锁参数）
+│     ├─ uvr_lead_extract.py         # ② 主人声提取（锁参数）
+│     ├─ uvr_dereverb.py             # ③ 去混响/降噪（锁参数）
+│     ├─ rvc_convert_locked.py       # ④ RVC 变声（锁参数）
+│     ├─ finalize_loudness.py        # ⑤ 重采样/响度回整/峰值
+│     ├─ guard_check.py              # 护栏校验（SR/长度/LUFS/峰值/能量）
+│     ├─ trace_writer.py             # 写入 trace.json（可复现信息）
+│     └─ ssflow.py                   # 编排器：按 manifest 串行调用各步
+├─ examples/
+│  ├─ demo.yaml                      # 单曲 manifest 示例
+│  └─ batch.list                     # 批量文件清单（每行一个 slug）
+├─ scripts/
+│  └─ run_one.sh                     # 极简串行入口（无需 YAML）
+├─ wheelhouse/                       # （可选）离线 wheel 缓存
+└─ .env.example                      # 环境变量约定
+```
+
+---
+
+## 快速开始（Quick Start）
+
+> 下面的命令以 Linux/Mac 为例；Windows 可使用 WSL。
+
+1. **克隆仓库**
+
+```bash
+git clone https://github.com/FusinKoo/Seperate02.git
+cd Seperate02
+```
+
+2. **准备 Python 环境**（建议 3.10/3.11）
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install --upgrade pip
+# 若已提供版本锁：
+pip install -r requirements-locked.txt
+# 或开发期：
+# pip install -r requirements.txt
+```
+
+3. **配置环境变量**（复制并修改 `.env.example`）
+
+```bash
+cp .env.example .env
+# 关键变量示例：
+# SS_MODELS_DIR=/vol/models
+# SS_INBOX=/vol/inbox
+# SS_WORK=/vol/work
+# SS_OUT=/vol/out
+# SS_ORT_PROVIDERS=CUDA,CPU
+```
+
+4. **放置模型权重**（见下节“模型与路径约定”）
+
+5. **跑一首 Demo**
+
+```bash
+bash scripts/run_one.sh demo               # 等价于：python -m stepflow.cli.ssflow --manifest examples/demo.yaml
+```
+
+输出：
+
+* `<slug>.instrumental.*.wav`、`<slug>.lead_converted.*.wav`
+* `quality_report.json`、`trace.json`（可选生成 `report.html`）
+
+---
+
+## 环境与依赖
+
+* **操作系统**：Linux / macOS（Apple Silicon 可用 CPU 跑通，建议 GPU 环境）
+* **Python**：3.10+（建议 3.10/3.11）
+* **GPU**（建议）：CUDA 12.x + ONNX Runtime GPU 版（`onnxruntime-gpu`）
+* **离线安装**（可选）：使用 `wheelhouse/` 缓存 `pip wheel -r requirements-locked.txt` 生成的依赖包
+
+> **注意**：本仓库不包含任何第三方模型权重；请在本地/私有存储中按约定路径放置。
+
+---
+
+## 模型与路径约定
+
+通过 `SS_MODELS_DIR` 作为根目录，按以下结构放置（示例）：
+
+```
+$SS_MODELS_DIR/
+├─ UVR/
+│  ├─ UVR-MDX-NET-Inst_HQ_3.onnx        # 步骤① 分离
+│  ├─ Kim_Vocal_2.onnx                   # 步骤② 主人声提取
+│  └─ Reverb_HQ_By_FoxJoy.onnx           # 步骤③ 去混响/降噪
+└─ RVC/
+   ├─ G_8200.pth                         # 步骤④ 变声主干
+   ├─ hubert_base.pt                     # 内容编码器（16k）
+   ├─ rmvpe.onnx                         # F0 提取（16k）
+   └─ G_8200.index                       # 检索库 Index（强制启用）
+```
+
+> 如果你使用不同文件名/模型，请在对应 CLI 内**硬编码**并随 `trace.json` 记录。
+
+---
+
+## 运行入口
+
+### 极简脚本（推荐）
+
+```
+# 单首：
+./scripts/run_one.sh <slug>
+
+# 批量（不同歌曲并发 N 首；同一首内部严格串行）：
+cat examples/batch.list | xargs -I{} -P 4 ./scripts/run_one.sh {}
+```
+
+### `.env.example` 示例
+
+```dotenv
+SS_MODELS_DIR=/vol/models
+SS_INBOX=/vol/inbox
+SS_WORK=/vol/work
+SS_OUT=/vol/out
+# ONNX Runtime providers 顺序（显卡优先，CPU 兜底）
+SS_ORT_PROVIDERS=CUDA,CPU
+# 并行度（批量层面）；同一首歌始终串行
+SS_PARALLEL_JOBS=4
+```
+
+---
+
+## 编排器（ssflow）与 Manifest
+
+`examples/demo.yaml`：
+
+```yaml
+slug: demo
+input: ${SS_INBOX}/demo.wav
+steps:
+  - uvr_separate
+  - uvr_lead_extract
+  - uvr_dereverb
+  - rvc_convert_locked
+  - finalize_loudness
+```
+
+运行：
+
+```bash
+python -m stepflow.cli.ssflow --manifest examples/demo.yaml
+```
+
+> **说明**：Manifest 只描述顺序；参数与模型路径已在各 CLI 内“契约锁定”。
+
+---
+
+## CLI 步骤参考
+
+> 约定：所有 CLI 只暴露 `--in/--out`（以及必须的路径参数），其他参数**全部锁定**在代码中。
+
+### ① `uvr_separate`
+
+* **输入**：`<slug>.wav`
+* **输出**：`vocals_44k.f32.wav`、`instrumental_44k.f32.wav`
+* **锁定**：SR=44.1k、mono、float32；chunk=10.0s、overlap=5.0s、Hann 窗；无归一化；ORT providers 固定为 `CUDA,CPU`。
+* **失败即退出码非 0**；日志写入 `trace.json`。
+
+### ② `uvr_lead_extract`
+
+* **输入**：`vocals_44k.f32.wav`
+* **输出**：`lead_44k.f32.wav`
+* **锁定**：chunk=8.0s、overlap=4.0s；后处理阈值/平滑/最小时长按契约固定。
+
+### ③ `uvr_dereverb`
+
+* **输入**：`lead_44k.f32.wav`
+* **输出**：`lead_clean_44k.f32.wav`
+* **锁定**：chunk=8.0s、overlap=4.0s；100% 干声输出。
+
+### ④ `rvc_convert_locked`
+
+* **输入**：`lead_clean_44k.f32.wav`
+* **输出**：`<slug>.lead_converted.G_8200.wav`（48 kHz / 24-bit PCM）
+* **锁定**：
+
+  * RVC 主干 48k；Hubert/RMVPE 16k（内部派生）。
+  * `f0_method=rmvpe`、`index_rate=0.75`、`protect=0.33`、`rms_mix_rate=0.0`、`pitch_shift=0`。
+  * `chunk_size=64`、`crossfade=0.05s`、`device=cuda`；强制启用指定 `.index`。
+
+### ⑤ `finalize_loudness`
+
+* **输入**：
+
+  * 伴奏：`instrumental_44k.f32.wav`（内部重采样→48k/24-bit）
+  * 主唱：`<slug>.lead_converted.G_8200.wav`
+* **输出**：
+
+  * `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`（48k/24-bit）
+  * `quality_report.json`
+* **锁定**：目标 LUFS：伴奏 **-20.0 LUFS**、人声 **-18.5 LUFS**；**峰值 ≤ -3 dBFS**；不合格则按“**双轨同比例缩放**”回整。
+
+### 护栏：`guard_check`
+
+* 校验：SR、声道、样本长度（相对漂移 ≤ 0.5%）、峰值上限、能量下限。
+* 不通过立即 `exit 1` 并写失败原因。
+
+### 追踪：`trace_writer`
+
+* 每步记录：模型/版本/路径、ORT providers、耗时、输入输出哈希、采样率/长度摘要、退出码。
+
+---
+
+## 质量护栏与报告
+
+* **`quality_report.json`**：最终响度、峰值、DR/crest、时长对齐、是否触发回整；
+* **`trace.json`**：全链路元数据（步骤顺序/模型/参数/耗时/错误栈）；
+* **（可选）`report.html`**：只读静态报告，渲染上述 JSON；**与运行解耦**，不影响稳定性。
+
+---
+
+## 并发与吞吐策略
+
+* **同一首歌**：严格串行（避免资源污染）。
+* **多首歌**：进程级并行（如 `xargs -P 4` 或 Makefile 的 `-j`），由 OS/GPU 调度；显存更可控。
+* 建议按显存容量与模型峰值占用评估 `SS_PARALLEL_JOBS`。
+
+---
+
+## 失败恢复与可复现
+
+* 任一步失败仅影响该步及其下游；**中间件与上游结果保留**。
+* 重新执行会**从最近的未通过产物继续**。
+* `trace.json` 持久化所有关键元数据，确保复现实验与问题定位。
+
+---
+
+## Roadmap
+
+* [ ] 生成 `report.html` 的静态报告器（仅渲染 JSON）
+* [ ] 可选的 Snakemake/Make 编排（不改变现有入口）
+* [ ] Docker 镜像（锁定 CUDA/ORT/Python 版本）
+* [ ] CI：仅做 lint/构建，不跑模型（避免泄露与不稳定）
+* [ ] 指标采集：批处理成功率、耗时分布、显存峰值（写入 trace）
+
+---
+
+## FAQ
+
+**Q1. 为什么不做图形界面？**
+为稳定与可测，先用 CLI + 静态报告；以后若需要 UI，也做**只读**且与运行解耦。
+
+**Q2. 为什么不做“单进程端到端”？**
+多模型长进程易产生显存/线程/缓存污染，排错与恢复成本高；拆步能显著降低随机报错概率。
+
+**Q3. 我能调整参数吗？**
+本仓库定位为**契约锁定版**；若需实验版，请另开分支/仓库，避免影响稳定流。
+
+---
+
+## 许可与第三方声明
+
+* 建议采用 **MIT License**（或按你团队要求替换）。
+* 本仓库不包含任何第三方模型权重；使用者需自行遵循相应许可条款。
+* 任何品牌与模型名称仅用于说明，不代表背书。
+
+---
+
+> **命名建议**：本项目在文档中可简称 **CLS/Stepflow**；对外可称 “Seperate02（Contract-Locked Stepflow）”。
