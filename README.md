@@ -136,7 +136,9 @@ cp .env.example .env
 5. **跑一首 Demo**
 
 ```bash
-bash scripts/run_one.sh demo               # 等价于：python -m stepflow.cli.ssflow --manifest examples/demo.yaml
+bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth
+# 或已配置 .env 后：
+bash scripts/run_one.sh demo
 ```
 
 输出：
@@ -183,7 +185,10 @@ $SS_MODELS_DIR/
 ### 极简脚本（推荐）
 
 ```
-# 单首：
+# 单首
+# 显式路径：
+./scripts/run_one.sh <input_file> <rvc_pth>
+# 使用环境变量：
 ./scripts/run_one.sh <slug>
 
 # 批量（不同歌曲并发 N 首；同一首内部严格串行）：

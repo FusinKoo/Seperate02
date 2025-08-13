@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
-SLUG="$1"; OUTDIR="/vol/out/${SLUG}"
+
+usage(){ cat <<USAGE
+Usage: scripts/60_optional_mixdown.sh <slug>
+USAGE
+}
+[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
+
+SLUG="$1"
+SS_OUT=${SS_OUT:-/vol/out}
+OUTDIR="$SS_OUT/${SLUG}"
 BGM="${OUTDIR}/${SLUG}.instrumental.UVR-MDX-NET-Inst_HQ_3.wav"
 LEAD="${OUTDIR}/${SLUG}.lead_converted.wav"
 FINAL="${OUTDIR}/${SLUG}.mix_48k.wav"

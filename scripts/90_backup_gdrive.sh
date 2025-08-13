@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage(){ cat <<USAGE
+Usage: scripts/90_backup_gdrive.sh
+USAGE
+}
+[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
+
+SS_OUT=${SS_OUT:-/vol/out}
 REMOTE_ROOT="gdrive:Seperate02/out"
 
-# 首次需已完成：rclone config 交互创建名为 gdrive 的远端（drive 类型）
-
-rclone sync /vol/out "$REMOTE_ROOT" --transfers=8 --checkers=8 --fast-list --checksum --create-empty-src-dirs
+rclone sync "$SS_OUT" "$REMOTE_ROOT" --transfers=8 --checkers=8 --fast-list --checksum --create-empty-src-dirs
 TS=$(date +%Y%m%d-%H%M%S)
-rclone copy /vol/out "gdrive:Seperate02/out-archives/${TS}" --transfers=8 --checkers=8 --fast-list --checksum --create-empty-src-dirs
+rclone copy "$SS_OUT" "gdrive:Seperate02/out-archives/${TS}" --transfers=8 --checkers=8 --fast-list --checksum --create-empty-src-dirs
 
 echo "[OK] Backup done → $REMOTE_ROOT & out-archives/${TS}"
