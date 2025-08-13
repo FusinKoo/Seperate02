@@ -70,83 +70,63 @@
 
 ## 目录结构
 
-初始仓库为空；以下为**目标结构**（建议用自动化脚手架或在 PR 中逐步落地）。
+当前仓库主要由一组 shell 脚本组成，用于串行跑完整条音频处理链：
 
 ```text
 Seperate02/
 ├─ README.md
-├─ requirements-locked.txt           # 版本锁（建议）
-├─ contracts/
-│  └─ final_contract_v3.md           # 参数/顺序/阈值的“最终契约”副本
-├─ stepflow/
-│  ├─ __init__.py
-│  └─ cli/                           # 每一步=一个独立 CLI（单进程）
-│     ├─ uvr_separate.py             # ① 人声/伴奏分离（锁参数）
-│     ├─ uvr_lead_extract.py         # ② 主人声提取（锁参数）
-│     ├─ uvr_dereverb.py             # ③ 去混响/降噪（锁参数）
-│     ├─ rvc_convert_locked.py       # ④ RVC 变声（锁参数）
-│     ├─ finalize_loudness.py        # ⑤ 重采样/响度回整/峰值
-│     ├─ guard_check.py              # 护栏校验（SR/长度/LUFS/峰值/能量）
-│     ├─ trace_writer.py             # 写入 trace.json（可复现信息）
-│     └─ ssflow.py                   # 编排器：按 manifest 串行调用各步
-├─ examples/
-│  ├─ demo.yaml                      # 单曲 manifest 示例
-│  └─ batch.list                     # 批量文件清单（每行一个 slug）
+├─ requirements-locked.txt
+├─ .env.example                # 环境变量示例
 ├─ scripts/
-│  └─ run_one.sh                     # 极简串行入口（无需 YAML）
-├─ wheelhouse/                       # （可选）离线 wheel 缓存
-└─ .env.example                      # 环境变量约定
+│  ├─ 00_setup_env.sh          # 安装依赖并准备目录
+│  ├─ 10_separate_inst.sh      # ① UVR 分离
+│  ├─ 20_extract_main.sh       # ② 主人声提取
+│  ├─ 30_dereverb_denoise.sh   # ③ 去混响/降噪
+│  ├─ 40_rvc_convert.sh        # ④ RVC 变声
+│  ├─ 50_finalize_and_report.py# ⑤ 重采样/响度 & 报告
+│  ├─ run_one.sh               # 串行跑一首歌
+│  └─ run_batch.sh             # 基于队列并发批处理
+└─ contracts/                  # 契约文件等（可选）
 ```
 
 ---
 
 ## 快速开始（Quick Start）
 
-下面的命令以 Linux/Mac 为例；Windows 可使用 WSL。
+下面示例以 Linux/Mac 为例；Windows 可使用 WSL。
 
-1. **克隆仓库**
+1. **克隆仓库并安装依赖**
 
 ```bash
 git clone https://github.com/FusinKoo/Seperate02.git
 cd Seperate02
+bash scripts/00_setup_env.sh    # 生成虚拟环境并安装依赖
 ```
 
-1. **准备 Python 环境**（建议 3.10/3.11）
+2. **配置环境变量**
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-# 若已提供版本锁：
-pip install -r requirements-locked.txt
-# 或开发期：
-# pip install -r requirements.txt
+cp .env.example .env            # 按需修改路径
+source scripts/env.sh           # 加载 .env
 ```
 
-1. **配置环境变量**（复制并修改 `.env.example`）
+3. **放置模型权重**（见下节“模型与路径约定”）
+
+4. **运行单首歌曲**
 
 ```bash
-cp .env.example .env
-# 关键变量示例：
-# SS_MODELS_DIR=/vol/models
-# SS_INBOX=/vol/inbox
-# SS_WORK=/vol/work
-# SS_OUT=/vol/out
-# SS_ORT_PROVIDERS=CUDA,CPU
-```
-
-1. **放置模型权重**（见下节“模型与路径约定”）
-
-1. **跑一首 Demo**
-
-```bash
-make setup-lock && make sanity
-bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index
 # 或已配置 .env 后：
 bash scripts/run_one.sh demo
 ```
 
-输出：
+5. **批量处理（可选）**
+
+```bash
+bash scripts/run_batch.sh /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index
+```
+
+脚本输出包括：
 
 - `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
 - `<slug>.lead_converted.G_8200.wav`
