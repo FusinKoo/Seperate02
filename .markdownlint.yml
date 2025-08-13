@@ -1,0 +1,28 @@
+# 开启默认规则，并按项目实际微调
+default: true
+
+# 行宽更宽一些，且不检查代码块/表格/标题
+MD013:
+  line_length: 120
+  code_blocks: false
+  tables: false
+  headings: false
+  headers: false
+  strict: false
+
+# 有序列表统一使用 1. 风格
+MD029:
+  style: one
+
+# 无序列表全仓库统一使用 dash（-）
+MD004:
+  style: dash
+
+# 与中式写法冲突较多的规则：直接禁用
+MD028: false  # 引用内部不允许空行
+MD032: false  # 列表前后需要空行
+
+# 保留以下规则，保证文档基本可读性
+# - MD022（标题上下空行）
+# - MD025（仅一个 H1）
+# - MD040（代码块必须声明语言）

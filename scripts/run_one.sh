@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
+  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
+  exit 2
+fi
+# shellcheck source=env.sh
+source "$SCRIPT_DIR/env.sh"
+
 usage(){ cat <<USAGE
 Usage:
   scripts/run_one.sh <input_file> <rvc_model.pth> <rvc.index> [v1|v2] [slug]
@@ -12,11 +20,7 @@ USAGE
 }
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
-SS_INBOX=${SS_INBOX:-/vol/inbox}
-SS_WORK=${SS_WORK:-/vol/work}
-SS_OUT=${SS_OUT:-/vol/out}
-SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
-SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
+mkdir -p "$SS_INBOX" "$SS_WORK" "$SS_OUT"
 
 if [[ $# -ge 3 && -f "$1" ]]; then
   IN="$1"
@@ -36,6 +40,13 @@ elif [[ $# -eq 1 ]]; then
 else
   usage; exit 1
 fi
+
+LOCK="$SS_WORK/$SLUG/.lock"
+if ! ( set -o noclobber; echo $$ > "$LOCK" ) 2>/dev/null; then
+  echo "[WARN] $SLUG is locked" >&2
+  exit 0
+fi
+trap 'rm -f "$LOCK"' EXIT
 
 [[ -f "$IN" ]] || { echo "[ERR] missing input $IN" >&2; exit 1; }
 [[ -f "$RVC_PTH" ]] || { echo "[ERR] RVC model not found: $RVC_PTH. Place G_8200.pth in $SS_MODELS_DIR/RVC/ or set SS_RVC_PTH" >&2; exit 1; }
@@ -60,3 +71,4 @@ python scripts/50_finalize_and_report.py --slug "$SLUG"
 # bash scripts/60_optional_mixdown.sh "$SLUG"
 
 echo "[DONE] $SS_OUT/${SLUG}"
+find "$SS_WORK/$SLUG" -mindepth 1 -not -name 'run.log' -not -name '.src' -delete
