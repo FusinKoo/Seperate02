@@ -1,42 +1,55 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export LC_ALL=C.UTF-8
 
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
-  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
-  exit 2
-fi
-# shellcheck source=env.sh
-source "$SCRIPT_DIR/env.sh"
-
-REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/songs"
+# vars & dirs
+SS_INBOX=${SS_INBOX:-/vol/inbox}
+SS_WORK=${SS_WORK:-/vol/work}
+SS_GDRIVE_REMOTE=${SS_GDRIVE_REMOTE:-gdrive}
+SS_GDRIVE_ROOT=${SS_GDRIVE_ROOT:-Seperate02}
 mkdir -p "$SS_INBOX" "$SS_WORK"
-rclone mkdir "$REMOTE" >/dev/null 2>&1 || true
 
-slugify(){
-  local in="$1"
-  echo "$in" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/_/g' | sed -E 's/^_+|_+$//g'
-}
+is_audio(){ case "${1,,}" in *.wav|*.flac|*.m4a|*.mp3) return 0;; *) return 1;; esac }
 
-declare -A seen
-for ext in wav flac m4a mp3; do
-  while read -r path; do
-    [[ -z "$path" ]] && continue
-    file="$(basename "$path")"
-    slug="$(slugify "${file%.*}")"
-    workdir="$SS_WORK/$slug"
-    mkdir -p "$workdir"
-    if [[ -n "${seen[$slug]:-}" ]]; then
-      echo "$REMOTE/$path" >> "$workdir/.skipped"
-      continue
-    fi
-    seen[$slug]=1
-    lock="$workdir/.lock"
-    : > "$lock"
-    rclone copyto "$REMOTE/$path" "$SS_INBOX/$slug.$ext" --checksum --transfers 8 --checkers 8 --fast-list
-    echo "$REMOTE/$path::$file" > "$workdir/.src"
-    rm -f "$lock"
-  done < <(rclone lsjson "$REMOTE" --files-only --recursive --include "*.$ext" --fast-list | jq -r '.[].Path')
+# 递归列出 songs 下的候选文件
+mapfile -t FILES < <(rclone lsf -R --files-only "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs" || true)
+
+for rel in "${FILES[@]:-}"; do
+  [[ -n "$rel" ]] || continue
+  src_remote="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs/${rel}"
+  fname="$(basename "$rel")"
+  if ! is_audio "$fname"; then continue; fi
+
+  # 拉取到临时路径
+  tmp_local="${SS_INBOX}/.__tmp__${fname}"
+  rclone copyto "$src_remote" "$tmp_local" --checksum --checkers=8 --transfers=4 --fast-list || continue
+
+  # 计算 slug（Unicode 保留 + 内容哈希）
+  slug=$(python3 "$(dirname "$0")/slugify.py" --file "$tmp_local" --orig-name "$fname")
+  ext=".${fname##*.}"
+  local_final="${SS_INBOX}/${slug}${ext}"
+
+  # 已存在同名且内容相同则跳过
+  if [[ -f "$local_final" ]]; then
+    echo "[SKIP] exists: $local_final"; rm -f "$tmp_local"; continue
+  fi
+
+  mv -f "$tmp_local" "$local_final"
+
+  # 工作目录与标记
+  workdir="${SS_WORK}/${slug}"; mkdir -p "$workdir"
+  : >"$workdir/.lock"  # 加锁
+  {
+    echo "remote_path=$src_remote"
+    echo "original_name=$fname"
+    echo "ext=$ext"
+    echo "slug=$slug"
+    echo "local_inbox_path=$local_final"
+    echo "ts_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  } > "$workdir/.src"
+
+  echo "[PULLED] $fname → $local_final (slug=$slug)"
+
 done
 
-echo "[OK] Pulled inputs to $SS_INBOX"
+echo "[DONE] gdrive_pull_inputs"
