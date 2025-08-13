@@ -1,6 +1,17 @@
 #!/usr/bin/env bash
+# shellcheck shell=bash
 set -euo pipefail
 export LC_ALL=C.UTF-8
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/gdrive_pull_inputs.sh
+Desc : 递归扫描 ${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs/ 并将新歌拉取至 ${SS_INBOX}；
+       自动生成 slug、创建 .lock/.src。无需参数。
+Env  : SS_GDRIVE_REMOTE, SS_GDRIVE_ROOT, SS_INBOX, SS_WORK
+USAGE
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
 
 # vars & dirs
 SS_INBOX=${SS_INBOX:-/vol/inbox}
