@@ -68,6 +68,11 @@ else
     echo "--- quality_report.json ---" >> "$reason_file"
     sed -n '1,120p' "$outdir/quality_report.json" >> "$reason_file"
   }
+  # 追加步骤日志尾部（若存在）
+  if [[ -f "$SS_WORK/$slug/run.log" ]]; then
+    echo -e "\n--- run.log (tail -n 200) ---" >> "$reason_file"
+    tail -n 200 "$SS_WORK/$slug/run.log" >> "$reason_file" || true
+  fi
   rclone copyto "$reason_file" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}.reason.txt" "${RCLONE_OPTS[@]}"
   rm -f "$reason_file"
 fi
