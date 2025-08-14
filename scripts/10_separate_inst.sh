@@ -9,10 +9,10 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
-: "${SS_UVR_VENV:=/opt/venvs/uvr}"; : "${SS_RVC_VENV:=/opt/venvs/rvc}"
-: "${SS_CACHE_DIR:=/vol/.cache}"
+: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-command -v "$SS_UVR_VENV/bin/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+# requires $SS_UVR_VENV/bin/audio-separator
+command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
 
 usage(){ cat <<USAGE
 Usage: scripts/10_separate_inst.sh <input_file> <slug>
@@ -32,7 +32,7 @@ DEVICE_OPT=""
 [[ "${SS_FORCE_CPU:-0}" == 1 ]] && DEVICE_OPT="--device cpu"
 
 cd "$BASE/sep1"
-"$SS_UVR_VENV/bin/audio-separator" "$IN" \
+"$UVR_BIN/audio-separator" "$IN" \
   --model_filename "$MODEL" \
   --model_file_dir "$MODEL_DIR" \
   --chunk 10 --overlap 5 --fade_overlap hann \

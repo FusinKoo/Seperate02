@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CACHE_DIR=${SS_CACHE_DIR:-/vol/.cache}
+: "${SS_CACHE_DIR:=/vol/.cache}"
+
+# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
 
 echo "[BEFORE]"
-df -h / /vol "$CACHE_DIR"
+df -h / /vol "$SS_CACHE_DIR" 2>/dev/null || df -h
 
-rm -rf "$HOME/.cache" "$CACHE_DIR/pip" "$CACHE_DIR/huggingface" "$CACHE_DIR/torch" /root/.cache/pip 2>/dev/null || true
-rm -rf /tmp/* 2>/dev/null || true
+rm -rf "$HOME/.cache"/* "$SS_CACHE_DIR"/* /tmp/* 2>/dev/null || true
+pip cache purge >/dev/null 2>&1 || true
 
 echo "[AFTER]"
-df -h / /vol "$CACHE_DIR"
+df -h / /vol "$SS_CACHE_DIR" 2>/dev/null || df -h

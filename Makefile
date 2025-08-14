@@ -58,5 +58,5 @@ clean-cache:
 > bash scripts/cleanup_caches.sh
 
 index-first:
-> @echo "Use scripts/70_build_index_from_wav.py to build index:" 
-> @echo "  ${SS_RVC_VENV:-/opt/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"
+> @echo "Use scripts/70_build_index_from_wav.py to build index:"
+> @echo "  ${SS_RVC_VENV:-/vol/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"

@@ -9,11 +9,11 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
-: "${SS_UVR_VENV:=/opt/venvs/uvr}"; : "${SS_RVC_VENV:=/opt/venvs/rvc}"
-: "${SS_CACHE_DIR:=/vol/.cache}"
+: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-command -v "$SS_UVR_VENV/bin/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
-command -v "$SS_RVC_VENV/bin/rvc" >/dev/null || { echo "[ERR] rvc not found; run scripts/00_setup_env_split.sh"; exit 2; }
+# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
+command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+command -v "$RVC_BIN/rvc" >/dev/null || { echo "[ERR] rvc not found; run scripts/00_setup_env_split.sh"; exit 2; }
 
 usage(){ cat <<USAGE
 Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
@@ -32,7 +32,7 @@ IN="$BASE/03_main_vocal_dry.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
 
 export RVC_ASSETS_DIR="$SS_ASSETS_DIR"
 
-"$SS_RVC_VENV/bin/rvc" infer \
+"$RVC_BIN/rvc" infer \
   -i "$IN" \
   -o "$OUTDIR/04_vocal_converted.wav" \
   -mp "$RVC_PTH" \
