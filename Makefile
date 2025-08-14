@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock setup-split sanity demo env one pull batch push backup doctor clean-cache index-first
+.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup doctor clean-cache index-first
 
 help:
 > @echo "Targets:"
@@ -18,7 +18,10 @@ help:
 > @echo "  index-first - build RVC index"
 
 setup-lock:
-> bash scripts/00_setup_env.sh
+> bash scripts/00_setup_env_split.sh
+
+setup:
+> bash scripts/00_setup_env_split.sh
 
 sanity:
 > bash scripts/sanity_check.sh
