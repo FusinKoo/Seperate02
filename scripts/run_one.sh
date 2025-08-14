@@ -3,6 +3,28 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+ensure_vol_mount
+
+usage() {
+  cat <<USG
+Usage: $(basename "$0") [options]
+Options:
+  -h, --help   Show this help and exit
+Examples:
+  make setup-split
+  bash scripts/gdrive_sync_models.sh
+  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+USG
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+
 # env defaults
 SS_INBOX=${SS_INBOX:-/vol/inbox}
 SS_WORK=${SS_WORK:-/vol/work}
@@ -28,7 +50,7 @@ kv_get() { # $1=key $2=file
 }
 
 if [[ -z "$IN" ]]; then
-  echo "[ERR] usage: run_one.sh <input_path|slug> <rvc.pth> <rvc.index> [v1|v2]" >&2
+  usage
   exit 2
 fi
 

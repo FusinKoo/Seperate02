@@ -33,17 +33,24 @@ done
 echo "SS_INBOX=$SS_INBOX"; echo "SS_WORK=$SS_WORK"; echo "SS_OUT=$SS_OUT"
 echo "SS_MODELS_DIR=$SS_MODELS_DIR"; echo "SS_ASSETS_DIR=$SS_ASSETS_DIR"
 
-# ORT providers 检查（缺库不失败）
-python3 - "$@" <<'PY'
+# ORT providers 检查
+python3 - <<'PY'
+import json, sys
 try:
     import onnxruntime as ort
-    print('ORT providers:', ort.get_available_providers())
-    ok = ('CUDAExecutionProvider' in ort.get_available_providers() and
-          'CPUExecutionProvider' in ort.get_available_providers())
-    print('ORT order OK:', ok)
+    prov = ort.get_available_providers()
+    print("ORT providers:", prov)
+    wants = ['CUDAExecutionProvider', 'CPUExecutionProvider']
+    if prov[:2] == wants:
+        print('[OK] Provider order CUDA→CPU confirmed')
+    elif 'CUDAExecutionProvider' in prov and 'CPUExecutionProvider' in prov:
+        print('[WARN] Providers present but order != CUDA→CPU (actual:', prov, ')')
+    elif 'CPUExecutionProvider' in prov:
+        print('[WARN] CUDAExecutionProvider missing, CPU-only mode (actual:', prov, ')')
+    else:
+        print('[ERR] Missing CUDA/CPU providers, actual:', prov)
+        sys.exit(3)
 except Exception as e:
-    print('ORT not available:', e)
-    print('HINT: run `make setup-lock` on the GPU runner to install onnxruntime-gpu')
+    print('[ERR] onnxruntime not available:', e)
+    sys.exit(2)
 PY
-# 永远 exit 0（自检不阻塞上线），真正运行阶段会再次检测
-exit 0

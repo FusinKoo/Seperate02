@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage() {
+  cat <<USG
+Usage: $(basename "$0") [options]
+Options:
+  -h, --help   Show this help and exit
+Examples:
+  make setup-split
+  bash scripts/gdrive_sync_models.sh
+  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+USG
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+
 : "${SS_CACHE_DIR:=/vol/.cache}"
 
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc

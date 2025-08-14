@@ -93,9 +93,8 @@ Seperate02/
 
 ## 快速开始（Quick Start）
 
-### 挂载与路径
-
-所有虚拟环境、模型、缓存、临时文件等重资产均位于挂载的 Network Volume `/vol`，运行前请确保该路径已存在。
+必须先挂载 /vol（Network Volume）
+![mount /vol screenshot placeholder](docs/mount_vol_placeholder.png)
 
 ### 首次启动（8 行清单）
 
@@ -120,6 +119,10 @@ bash scripts/gdrive_pull_inputs.sh
 slug=$(find /vol/work -mindepth 2 -maxdepth 2 -name .lock -printf '%h\n' | sed -n '1p' | xargs -I{} basename {})
 bash scripts/run_one.sh "$slug" /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 ```
+
+### 挂载与路径
+
+所有虚拟环境、模型、缓存、临时文件等重资产均位于挂载的 Network Volume `/vol`，运行前请确保该路径已存在。
 
 ### 低空间环境策略
 
