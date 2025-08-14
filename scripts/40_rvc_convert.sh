@@ -9,13 +9,18 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
+: "${SS_UVR_VENV:=/opt/venvs/uvr}"; : "${SS_RVC_VENV:=/opt/venvs/rvc}"
+: "${SS_CACHE_DIR:=/vol/.cache}"
+UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
+command -v "$SS_UVR_VENV/bin/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+command -v "$SS_RVC_VENV/bin/rvc" >/dev/null || { echo "[ERR] rvc not found; run scripts/00_setup_env_split.sh"; exit 2; }
+
 usage(){ cat <<USAGE
 Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
 USAGE
 }
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
-source "$SCRIPT_DIR/../.venv/bin/activate"
 
 SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="$3"; RVC_VER="${4:-v2}"
 BASE="$SS_WORK/${SLUG}"; OUTDIR="$SS_OUT/${SLUG}"; mkdir -p "$OUTDIR"
@@ -27,7 +32,7 @@ IN="$BASE/03_main_vocal_dry.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
 
 export RVC_ASSETS_DIR="$SS_ASSETS_DIR"
 
-python -m rvc_python cli \
+"$SS_RVC_VENV/bin/rvc" infer \
   -i "$IN" \
   -o "$OUTDIR/04_vocal_converted.wav" \
   -mp "$RVC_PTH" \

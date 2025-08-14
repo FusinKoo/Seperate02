@@ -8,6 +8,11 @@ SS_INBOX=${SS_INBOX:-/vol/inbox}
 SS_WORK=${SS_WORK:-/vol/work}
 SS_OUT=${SS_OUT:-/vol/out}
 
+: "${SS_UVR_VENV:=/opt/venvs/uvr}"; : "${SS_RVC_VENV:=/opt/venvs/rvc}"
+: "${SS_CACHE_DIR:=/vol/.cache}"
+UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
+command -v "$SS_UVR_VENV/bin/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+
 IN=${1:-}
 RVC_PTH=${2:-${SS_RVC_PTH:-}}
 RVC_INDEX=${3:-${SS_RVC_INDEX:-}}
@@ -48,7 +53,7 @@ bash scripts/10_separate_inst.sh "$path" "$slug"
 bash scripts/20_extract_main.sh "$slug"
 bash scripts/30_dereverb_denoise.sh "$slug"
 bash scripts/40_rvc_convert.sh "$slug" "$RVC_PTH" "$RVC_INDEX" "$RVC_VER"
-python3 scripts/50_finalize_and_report.py --slug "$slug"
+"$SS_UVR_VENV/bin/python" scripts/50_finalize_and_report.py --slug "$slug"
 # 可选：
 # bash scripts/60_optional_mixdown.sh "$slug"
 
