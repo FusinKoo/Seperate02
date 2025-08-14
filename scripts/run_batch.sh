@@ -2,10 +2,10 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
-: "${SS_UVR_VENV:=/opt/venvs/uvr}"; : "${SS_RVC_VENV:=/opt/venvs/rvc}"
-: "${SS_CACHE_DIR:=/vol/.cache}"
+: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-command -v "$SS_UVR_VENV/bin/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
+command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
 
 usage(){
   cat <<'USAGE'

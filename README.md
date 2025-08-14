@@ -93,7 +93,35 @@ Seperate02/
 
 ## 快速开始（Quick Start）
 
-### 低空间环境建议
+### 挂载与路径
+
+所有虚拟环境、模型、缓存、临时文件等重资产均位于挂载的 Network Volume `/vol`，运行前请确保该路径已存在。
+
+### 首次启动（8 行清单）
+
+```bash
+# 0) 体检与空间
+make doctor    # 不足则 make clean-cache
+
+# 1) 安装到 /vol（双环境）
+make setup-split
+
+# 2) 模型同步到 /vol
+bash scripts/gdrive_sync_models.sh
+
+# 3) Index 先行（可选）
+"$SS_RVC_VENV/bin/python" scripts/70_build_index_from_wav.py \
+  --wav /vol/inbox/my_voice_clean.wav \
+  --out /vol/models/RVC/G_8200.index
+rclone copy /vol/models/RVC/G_8200.index gdrive:Seperate02/models --checksum
+
+# 4) 拉歌并运行
+bash scripts/gdrive_pull_inputs.sh
+slug=$(find /vol/work -mindepth 2 -maxdepth 2 -name .lock -printf '%h\n' | sed -n '1p' | xargs -I{} basename {})
+bash scripts/run_one.sh "$slug" /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+```
+
+### 低空间环境策略
 
 ```bash
 make doctor
@@ -185,7 +213,7 @@ UVR 使用 `audio-separator 0.35.2`，参数映射：`--chunk`=分块大小、`-
 ### Index 先行剧本
 
 1. 上传清洁的人声 WAV 至 `inbox`
-2. 生成 Index：`${SS_RVC_VENV:-/opt/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav /vol/inbox/my_voice_clean.wav --out /vol/models/RVC/G_8200.index`
+2. 生成 Index：`${SS_RVC_VENV:-/vol/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav /vol/inbox/my_voice_clean.wav --out /vol/models/RVC/G_8200.index`
 3. 使用 `rclone copy` 将生成的 `.index` 回传
 
 

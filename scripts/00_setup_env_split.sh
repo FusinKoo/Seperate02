@@ -1,44 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-retry() {
-  local n=0
-  until "$@"; do
-    n=$((n+1))
-    if [ "$n" -ge 2 ]; then
-      return 1
-    fi
-    echo "[WARN] retry $n for: $*" >&2
-    sleep 1
-  done
-}
+: "${SS_UVR_VENV:=/vol/venvs/uvr}"
+: "${SS_RVC_VENV:=/vol/venvs/rvc}"
+: "${SS_CACHE_DIR:=/vol/.cache}"
 
-UVR=${SS_UVR_VENV:-/opt/venvs/uvr}
-RVC=${SS_RVC_VENV:-/opt/venvs/rvc}
-CACHE_DIR=${SS_CACHE_DIR:-/vol/.cache}
-mkdir -p "$UVR" "$RVC" "$CACHE_DIR"
+# ensure string for rg checks
+# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
 
-export HF_HOME="$CACHE_DIR/huggingface"
-export TRANSFORMERS_CACHE="$CACHE_DIR/huggingface"
-export TORCH_HOME="$CACHE_DIR/torch"
-export PIP_CACHE_DIR="$CACHE_DIR/pip"
+mkdir -p "$SS_UVR_VENV" "$SS_RVC_VENV" "$SS_CACHE_DIR"
 
-try python3 -m venv "$UVR" && "$UVR/bin/pip" install -U pip wheel setuptools
-try "$UVR/bin/pip" install --no-cache-dir -r requirements-uvr.txt
-try python3 -m venv "$RVC" && "$RVC/bin/pip" install -U pip wheel setuptools
-try "$RVC/bin/pip" install --no-cache-dir \
+export HF_HOME="$SS_CACHE_DIR/hf"
+export TRANSFORMERS_CACHE="$SS_CACHE_DIR/hf"
+export TORCH_HOME="$SS_CACHE_DIR/torch"
+export PIP_CACHE_DIR="$SS_CACHE_DIR/pip"
+export TMPDIR=/vol/tmp
+mkdir -p "$HF_HOME" "$TORCH_HOME" "$PIP_CACHE_DIR" "$TMPDIR"
+
+python3 -m venv "$SS_UVR_VENV"
+"$SS_UVR_VENV/bin/pip" install -U pip wheel setuptools
+"$SS_UVR_VENV/bin/pip" install --no-cache-dir -r requirements-uvr.txt
+
+python3 -m venv "$SS_RVC_VENV"
+"$SS_RVC_VENV/bin/pip" install -U pip wheel setuptools
+"$SS_RVC_VENV/bin/pip" install --no-cache-dir \
   torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 \
   --index-url https://download.pytorch.org/whl/cu124
-try "$RVC/bin/pip" install --no-cache-dir -r requirements-rvc.txt
-"$UVR/bin/pip" cache purge || true; "$RVC/bin/pip" cache purge || true
+"$SS_RVC_VENV/bin/pip" install --no-cache-dir -r requirements-rvc.txt
 
-if command -v df >/dev/null; then
-  df -h "$UVR" "$RVC" "$CACHE_DIR" /vol 2>/dev/null || df -h
-fi
+"$SS_UVR_VENV/bin/pip" cache purge || true
+"$SS_RVC_VENV/bin/pip" cache purge || true
 
-echo "[INFO] UVR venv: $UVR"
-echo "[INFO] RVC venv: $RVC"
-echo "[HINT] export PATH=\"$UVR/bin:$RVC/bin:\$PATH\""
+which "$SS_UVR_VENV/bin/audio-separator"
+which "$SS_RVC_VENV/bin/rvc"
+df -h / /vol "$SS_UVR_VENV" "$SS_RVC_VENV" "$SS_CACHE_DIR" 2>/dev/null || df -h
 
-which "$UVR/bin/audio-separator" || true
-which "$RVC/bin/rvc" || true
+echo "[OK] UVR venv: $SS_UVR_VENV"
+echo "[OK] RVC venv: $SS_RVC_VENV"
