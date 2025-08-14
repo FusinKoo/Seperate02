@@ -3,15 +3,6 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
-ensure_vol_mount() {
-  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
-    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
-    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
-    exit 32
-  fi
-}
-ensure_vol_mount
-
 usage() {
   cat <<USG
 Usage: $(basename "$0") [options]
@@ -23,7 +14,17 @@ Examples:
   bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 USG
 }
+# ensure /vol mount only after help check
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+
 case "${1:-}" in -h|--help) usage; exit 0;; esac
+ensure_vol_mount
 
 # env defaults
 SS_INBOX=${SS_INBOX:-/vol/inbox}

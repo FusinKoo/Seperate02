@@ -2,15 +2,6 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
-ensure_vol_mount() {
-  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
-    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
-    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
-    exit 32
-  fi
-}
-ensure_vol_mount
-
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
@@ -23,7 +14,16 @@ Desc : 基于 $SS_WORK/*/.lock 队列并发处理多首歌，每首日志写入 
 Env  : SS_WORK, SS_PARALLEL_JOBS
 USAGE
 }
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+
 case "${1:-}" in -h|--help) usage; exit 0;; esac
+ensure_vol_mount
 [[ -n "${1:-}" && -n "${2:-}" ]] || { usage; exit 2; }
 
 SS_WORK=${SS_WORK:-/vol/work}
