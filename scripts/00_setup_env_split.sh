@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ensure_vol_mount() {
-  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
-    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
-    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
-    exit 32
-  fi
-}
-ensure_vol_mount
-
 usage() {
   cat <<USG
 Usage: $(basename "$0") [options]
@@ -21,11 +12,20 @@ Examples:
   bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 USG
 }
-case "${1:-}" in -h|--help) usage; exit 0;; esac
-
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"
 : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 : "${SS_CACHE_DIR:=/vol/.cache}"
+
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+ensure_vol_mount
 
 # ensure string for rg checks
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
@@ -44,10 +44,11 @@ python3 -m venv "$SS_UVR_VENV"
 "$SS_UVR_VENV/bin/pip" install --no-cache-dir -r requirements-uvr.txt
 
 python3 -m venv "$SS_RVC_VENV"
-"$SS_RVC_VENV/bin/pip" install -U pip wheel setuptools
+"$SS_RVC_VENV/bin/python" -m pip install -U "pip<24.1" "setuptools<70" wheel
+"$SS_RVC_VENV/bin/pip" install --no-cache-dir "numpy==1.23.5"
 "$SS_RVC_VENV/bin/pip" install --no-cache-dir \
-  torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0 \
-  --index-url https://download.pytorch.org/whl/cu124
+  --index-url https://download.pytorch.org/whl/cu124 \
+  torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
 "$SS_RVC_VENV/bin/pip" install --no-cache-dir -r requirements-rvc.txt
 
 "$SS_UVR_VENV/bin/pip" cache purge || true

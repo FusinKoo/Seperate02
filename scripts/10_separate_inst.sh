@@ -1,49 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
-  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
-  exit 2
-fi
-# shellcheck source=env.sh
-source "$SCRIPT_DIR/env.sh"
-
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
-UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-# requires $SS_UVR_VENV/bin/audio-separator
-command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
-
-usage(){ cat <<USAGE
-Usage: scripts/10_separate_inst.sh <input_file> <slug>
-USAGE
-}
-[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
-
-
-IN="$1"; SLUG="${2:-$(basename "${IN%.*}")}" 
-BASE="$SS_WORK/${SLUG}"
-OUTDIR="$SS_OUT/${SLUG}"
-mkdir -p "$BASE/sep1" "$OUTDIR"
-
-MODEL_DIR="$SS_MODELS_DIR/UVR"
-MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"
-DEVICE_OPT=""
-[[ "${SS_FORCE_CPU:-0}" == 1 ]] && DEVICE_OPT="--device cpu"
-
-cd "$BASE/sep1"
-"$UVR_BIN/audio-separator" "$IN" \
-  --model_filename "$MODEL" \
-  --model_file_dir "$MODEL_DIR" \
-  --chunk 10 --overlap 5 --fade_overlap hann \
-  ${DEVICE_OPT:-}
-
-INST="$(find . -maxdepth 1 -type f -name '*Instrumental*.wav' -print | sort | head -n1)"
-VOX="$(find . -maxdepth 1 -type f -name '*Vocals*.wav' -print | sort | head -n1)"
-[ -n "${INST:-}" ] && mv "$INST" "$BASE/01_accompaniment.wav"
-[ -n "${VOX:-}" ] && mv "$VOX"  "$BASE/01_vocals_mix.wav"
-
-[ -f "$BASE/01_accompaniment.wav" ] || { echo "[ERR] Missing accompaniment"; exit 1; }
-[ -f "$BASE/01_vocals_mix.wav" ]  || { echo "[ERR] Missing vocals mix"; exit 1; }
-
-echo "[OK] Step1 done → $BASE/01_accompaniment.wav, $BASE/01_vocals_mix.wav"
+usage(){ echo "Usage: $0 <input_file> <slug>"; exit 2; }
+IN=${1:-}; SLUG=${2:-}; [[ -f "${IN:-}" && -n "${SLUG:-}" ]] || usage
+set +u; [ -f .env ] && . .env; set -u
+SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
+UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"
+WORK_DIR="$SS_WORK/$SLUG"; mkdir -p "$WORK_DIR"
+"$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV \
+  --mdx_segment_size 10 --mdx_overlap 5 --normalization 1.0 --amplification 0 "$IN"
+shopt -s nullglob
+inst=( "$WORK_DIR"/*"(Instrumental)"*UVR-MDX-NET-Inst_HQ_3.wav ); voc=( "$WORK_DIR"/*"(Vocals)"*UVR-MDX-NET-Inst_HQ_3.wav )
+[[ ${#inst[@]} -ge 1 ]] || { echo "[ERR] Instrumental stem not found"; exit 3; }
+[[ ${#voc[@]}  -ge 1 ]] || { echo "[ERR] Vocals stem not found"; exit 3; }
+mv -f "${inst[0]}" "$WORK_DIR/01_accompaniment.wav"; mv -f "${voc[0]}"  "$WORK_DIR/01_vocals_mix.wav"
+echo "[OK] 10 -> 01_accompaniment.wav, 01_vocals_mix.wav"

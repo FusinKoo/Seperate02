@@ -96,6 +96,10 @@ Seperate02/
 必须先挂载 /vol（Network Volume）
 ![mount /vol screenshot placeholder](docs/mount_vol_placeholder.png)
 
+> **提示**：长命令可通过 `\` 分行，或使用 `tmux` 保持会话。
+
+> **OAuth**：建议使用私有 OAuth 流程（或 Service Account），在本地执行 `rclone authorize "drive"` 生成配置，粘贴到 Runpod 并保存为 `/vol/rclone/rclone.conf`，然后在 `.env` 或 shell 中设定 `RCLONE_CONFIG=/vol/rclone/rclone.conf`。
+
 ### 首次启动（8 行清单）
 
 ```bash
@@ -106,7 +110,7 @@ make doctor    # 不足则 make clean-cache
 make setup-split
 
 # 2) 模型同步到 /vol
-bash scripts/gdrive_sync_models.sh
+RCLONE_CONFIG=/vol/rclone/rclone.conf bash scripts/gdrive_sync_models.sh
 
 # 3) Index 先行（可选）
 "$SS_RVC_VENV/bin/python" scripts/70_build_index_from_wav.py \
@@ -118,6 +122,21 @@ rclone copy /vol/models/RVC/G_8200.index gdrive:Seperate02/models --checksum
 bash scripts/gdrive_pull_inputs.sh
 slug=$(find /vol/work -mindepth 2 -maxdepth 2 -name .lock -printf '%h\n' | sed -n '1p' | xargs -I{} basename {})
 bash scripts/run_one.sh "$slug" /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+```
+
+### 自检
+
+```bash
+# UVR
+/vol/venvs/uvr/bin/audio-separator --version || echo "[MISS] audio-separator"
+
+# RVC
+/vol/venvs/rvc/bin/python - <<'PY'
+import numpy as np, torch
+print("NumPy:", np.__version__)
+print("Torch:", torch.__version__, "CUDA:", torch.cuda.is_available())
+PY
+(/vol/venvs/rvc/bin/rvc --help | head -n 3) || (/vol/venvs/rvc/bin/python -m rvc --help | head -n 3) || echo "[MISS] rvc"
 ```
 
 ### 挂载与路径
@@ -166,8 +185,8 @@ bash scripts/run_batch.sh /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.inde
 
 脚本输出包括：
 
-- `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`
-- `<slug>.lead_converted.G_8200.wav`
+- `01_accompaniment.wav`, `01_vocals_mix.wav`
+- `02_main_vocal.wav`, `03_main_vocal_dry.wav`, `04_vocal_converted.wav`
 - `quality_report.json`、`trace.json`
 
 ---
@@ -280,26 +299,26 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 ### ① `uvr_separate`
 
 - **输入**：`<slug>.wav`
-- **输出**：`vocals_44k.f32.wav`、`instrumental_44k.f32.wav`
-- **锁定**：SR=44.1k、mono、float32；chunk=10.0s、overlap=5.0s、Hann 窗；无归一化；ORT providers 固定为 `CUDA,CPU`。
+- **输出**：`01_accompaniment.wav`、`01_vocals_mix.wav`
+- **锁定**：SR=44.1k、mono、float32；`--mdx_segment_size 10 --mdx_overlap 5 --normalization 1.0`；ORT providers 固定为 `CUDA,CPU`。
 - **失败即退出码非 0**；日志写入 `trace.json`。
 
 ### ② `uvr_lead_extract`
 
-- **输入**：`vocals_44k.f32.wav`
-- **输出**：`lead_44k.f32.wav`
-- **锁定**：chunk=8.0s、overlap=4.0s；后处理阈值/平滑/最小时长按契约固定。
+- **输入**：`01_vocals_mix.wav`
+- **输出**：`02_main_vocal.wav`
+- **锁定**：`--mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0`；后处理阈值/平滑/最小时长按契约固定。
 
 ### ③ `uvr_dereverb`
 
-- **输入**：`lead_44k.f32.wav`
-- **输出**：`lead_clean_44k.f32.wav`
-- **锁定**：chunk=8.0s、overlap=4.0s；100% 干声输出。
+- **输入**：`02_main_vocal.wav`
+- **输出**：`03_main_vocal_dry.wav`
+- **锁定**：`--mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0`；100% 干声输出。
 
 ### ④ `rvc_convert_locked`
 
-- **输入**：`lead_clean_44k.f32.wav`
-- **输出**：`<slug>.lead_converted.G_8200.wav`（48 kHz / 24-bit PCM）
+- **输入**：`03_main_vocal_dry.wav`
+- **输出**：`04_vocal_converted.wav`（48 kHz / 24-bit PCM）
 - **锁定**：
 
   - RVC 主干 48k；Hubert/RMVPE 16k（内部派生）。
@@ -310,11 +329,11 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 
 - **输入**：
 
-  - 伴奏：`instrumental_44k.f32.wav`（内部重采样→48k/24-bit）
-  - 主唱：`<slug>.lead_converted.G_8200.wav`
+  - 伴奏：`01_accompaniment.wav`（内部重采样→48k/24-bit）
+  - 主唱：`04_vocal_converted.wav`
 - **输出**：
 
-  - `<slug>.instrumental.UVR-MDX-NET-Inst_HQ_3.wav`（48k/24-bit）
+  - `01_accompaniment.wav`（48k/24-bit）
   - `quality_report.json`
 - **锁定**：目标 LUFS：伴奏 **-20.0 LUFS**、人声 **-18.5 LUFS**；**峰值 ≤ -3 dBFS**；不合格则按“**双轨同比例缩放**”回整。
 

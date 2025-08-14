@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ensure_vol_mount() {
-  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
-    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
-    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
-    exit 32
-  fi
-}
-ensure_vol_mount
-
 usage() {
   cat <<USG
 Usage: $(basename "$0") [options]
@@ -21,7 +12,16 @@ Examples:
   bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 USG
 }
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+
 case "${1:-}" in -h|--help) usage; exit 0;; esac
+ensure_vol_mount
 
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
@@ -37,7 +37,8 @@ mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
 rclone mkdir "$REMOTE" >/dev/null 2>&1 || true
 
 # Sync all model files
-rclone copy "$REMOTE" "$LOCAL" --checksum --transfers 8 --checkers 8 --fast-list
+RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list)
+rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
 
 # relocate expected files
 move_if_found(){

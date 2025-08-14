@@ -1,45 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
-
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
-  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
-  exit 2
-fi
-# shellcheck source=env.sh
-source "$SCRIPT_DIR/env.sh"
-
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
-UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-# requires $SS_UVR_VENV/bin/audio-separator
-command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
-
-usage(){ cat <<USAGE
-Usage: scripts/30_dereverb_denoise.sh <slug>
-USAGE
-}
-[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
-
-
-SLUG="$1"
-BASE="$SS_WORK/${SLUG}"; mkdir -p "$BASE/sep3"
-IN="$BASE/02_main_vocal.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
-MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Reverb_HQ_By_FoxJoy.onnx"
-DEVICE_OPT=""
-[[ "${SS_FORCE_CPU:-0}" == 1 ]] && DEVICE_OPT="--device cpu"
-
-cd "$BASE/sep3"
-"$UVR_BIN/audio-separator" "$IN" \
-  --model_filename "$MODEL" \
-  --model_file_dir "$MODEL_DIR" \
-  --chunk 8 --overlap 4 --fade_overlap hann \
-  ${DEVICE_OPT:-}
-
-DRY="$(find . -maxdepth 1 -type f -name '*Vocals*.wav' -print | sort | head -n1)"
-WET="$(find . -maxdepth 1 -type f -name '*Instrumental*.wav' -print | sort | head -n1)"
-[ -n "${DRY:-}" ] && mv "$DRY" "$BASE/03_main_vocal_dry.wav"
-[ -n "${WET:-}" ] && mv "$WET" "$BASE/03_reverb_residual.wav"
-
-[ -f "$BASE/03_main_vocal_dry.wav" ] || { echo "[ERR] Missing dry vocal"; exit 1; }
-
-echo "[OK] Step3 done → $BASE/03_main_vocal_dry.wav"
+usage(){ echo "Usage: $0 <slug>"; exit 2; }
+SLUG=${1:-}; [[ -n "${SLUG:-}" ]] || usage
+set +u; [ -f .env ] && . .env; set -u
+SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
+UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Reverb_HQ_By_FoxJoy.onnx"
+WORK_DIR="$SS_WORK/$SLUG"; IN="$WORK_DIR/02_main_vocal.wav"; [[ -f "$IN" ]] || { echo "[ERR] missing $IN"; exit 3; }
+"$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV \
+  --mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0 --amplification 0 "$IN"
+shopt -s nullglob
+cand=( "$WORK_DIR"/*"(No Reverb)"*Reverb_HQ_By_FoxJoy*.wav );
+[[ ${#cand[@]} -ge 1 ]] || cand=( "$WORK_DIR"/*"(Dry)"*Reverb_HQ_By_FoxJoy*.wav );
+[[ ${#cand[@]} -ge 1 ]] || cand=( $(ls "$WORK_DIR"/*Reverb_HQ_By_FoxJoy*.wav 2>/dev/null | grep -vi 'Reverb' || true) );
+[[ ${#cand[@]} -ge 1 ]] || { echo "[ERR] dry vocal not found"; exit 3; }
+mv -f "${cand[0]}" "$WORK_DIR/03_main_vocal_dry.wav"; echo "[OK] 30 -> 03_main_vocal_dry.wav"
