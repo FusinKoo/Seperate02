@@ -1,6 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+ensure_vol_mount
+
+usage() {
+  cat <<USG
+Usage: $(basename "$0") [options]
+Options:
+  -h, --help   Show this help and exit
+Examples:
+  make setup-split
+  bash scripts/gdrive_sync_models.sh
+  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+USG
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
   echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2

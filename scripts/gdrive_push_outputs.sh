@@ -3,6 +3,15 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
+ensure_vol_mount() {
+  if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
+    echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
+    echo "HINT: Stop Pod → Attach Network Volume → Mount path=/vol → Start" >&2
+    exit 32
+  fi
+}
+ensure_vol_mount
+
 usage(){
   cat <<'USAGE'
 Usage: scripts/gdrive_push_outputs.sh <slug>

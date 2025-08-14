@@ -49,6 +49,7 @@ backup:
 > bash scripts/90_backup_gdrive.sh
 
 setup-split:
+> bash scripts/doctor_space.sh
 > bash scripts/00_setup_env_split.sh
 
 doctor:
