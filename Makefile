@@ -1,9 +1,10 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock sanity demo env one pull batch push backup
+.PHONY: help setup-lock setup-split sanity demo env one pull batch push backup doctor clean-cache index-first
 
 help:
 > @echo "Targets:"
 > @echo "  setup-lock  - install deps via lock file"
+> @echo "  setup-split - install dual venvs"
 > @echo "  sanity      - run environment checks"
 > @echo "  demo        - run demo song with fixed paths"
 > @echo "  env         - show key environment vars"
@@ -12,6 +13,9 @@ help:
 > @echo "  batch model=<pth> index=<idx> ver=<v1|v2>"
 > @echo "  push        - push processed outputs"
 > @echo "  backup      - backup outputs to gdrive"
+> @echo "  doctor      - space check"
+> @echo "  clean-cache - remove caches"
+> @echo "  index-first - build RVC index"
 
 setup-lock:
 > bash scripts/00_setup_env.sh
@@ -43,3 +47,16 @@ push:
 
 backup:
 > bash scripts/90_backup_gdrive.sh
+
+setup-split:
+> bash scripts/00_setup_env_split.sh
+
+doctor:
+> bash scripts/doctor_space.sh
+
+clean-cache:
+> bash scripts/cleanup_caches.sh
+
+index-first:
+> @echo "Use scripts/70_build_index_from_wav.py to build index:" 
+> @echo "  ${SS_RVC_VENV:-/opt/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"

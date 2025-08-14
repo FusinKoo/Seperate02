@@ -93,6 +93,13 @@ Seperate02/
 
 ## 快速开始（Quick Start）
 
+### 低空间环境建议
+
+```bash
+make doctor
+make clean-cache
+```
+
 下面示例以 Linux/Mac 为例；Windows 可使用 WSL。
 
 1. **克隆仓库并安装依赖**
@@ -100,7 +107,7 @@ Seperate02/
 ```bash
 git clone https://github.com/FusinKoo/Seperate02.git
 cd Seperate02
-bash scripts/00_setup_env.sh    # 生成虚拟环境并安装依赖
+make setup-split                # 生成双虚拟环境并安装依赖
 ```
 
 2. **配置环境变量**
@@ -135,6 +142,8 @@ bash scripts/run_batch.sh /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.inde
 ---
 
 ## 环境与依赖
+
+该项目使用 UVR 与 RVC 双虚拟环境，分别锁定 NumPy 2 与 NumPy 1.23，以避免依赖冲突。
 
 - **操作系统**：Linux / macOS（Apple Silicon 可用 CPU 跑通，建议 GPU 环境）
 - **Python**：3.10+（建议 3.10/3.11）
@@ -172,6 +181,13 @@ UVR 使用 `audio-separator 0.35.2`，参数映射：`--chunk`=分块大小、`-
 ---
 
 ## 运行入口
+
+### Index 先行剧本
+
+1. 上传清洁的人声 WAV 至 `inbox`
+2. 生成 Index：`${SS_RVC_VENV:-/opt/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav /vol/inbox/my_voice_clean.wav --out /vol/models/RVC/G_8200.index`
+3. 使用 `rclone copy` 将生成的 `.index` 回传
+
 
 ### 极简脚本（推荐）
 
