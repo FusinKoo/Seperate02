@@ -27,7 +27,16 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  --locked)
+    pip install -r requirements-locked.txt --require-hashes
+    exit 0
+    ;;
+esac
 ensure_vol_mount
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
