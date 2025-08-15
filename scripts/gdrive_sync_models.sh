@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 set -euo pipefail
 
 usage() {
@@ -40,12 +41,16 @@ fi
 source "$SCRIPT_DIR/env.sh"
 
 REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models"
+REMOTE_ASSETS="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/assets"
 LOCAL="$SS_MODELS_DIR"
 mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
 RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
 if ! $CHECK_ONLY; then
   rclone mkdir "$REMOTE" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
   rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+  if rclone lsf "$REMOTE_ASSETS" "${RCLONE_OPTS[@]}" >/dev/null 2>&1; then
+    rclone copy "$REMOTE_ASSETS" "$SS_ASSETS_DIR" --checksum "${RCLONE_OPTS[@]}"
+  fi
 
   # relocate expected files
   move_if_found(){
@@ -73,8 +78,8 @@ missing=()
 [[ -f "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx" ]] || missing+=("Reverb_HQ_By_FoxJoy.onnx")
 [[ -f "$LOCAL/RVC/G_8200.pth" ]] || missing+=("G_8200.pth")
 [[ -f "$LOCAL/RVC/G_8200.index" ]] || missing+=("G_8200.index")
-[[ -f "$SS_ASSETS_DIR/hubert_base.pt" ]] || missing+=("hubert_base.pt")
-[[ -f "$SS_ASSETS_DIR/rmvpe.onnx" ]] || missing+=("rmvpe.onnx")
+[[ -f "$SS_ASSETS_DIR/hubert_base.pt" || -f "$LOCAL/hubert_base.pt" ]] || missing+=("hubert_base.pt")
+[[ -f "$SS_ASSETS_DIR/rmvpe.onnx" || -f "$LOCAL/rmvpe.onnx" ]] || missing+=("rmvpe.onnx")
 
 if [ ${#missing[@]} -ne 0 ]; then
   echo "[ERR] Missing models: ${missing[*]}" >&2
