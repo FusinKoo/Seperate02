@@ -5,25 +5,66 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install tools
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Cache pip/uv
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/pip
+            ~/.cache/uv
+          key: ${{ runner.os }}-deps-${{ hashFiles('requirements-*.txt') }}
+
+      # 安装 CLI 类工具用 apt（含 shfmt），并带官方发布二进制回退以防 apt 源临时问题
+      - name: Install CLI linters (apt + fallback)
+        shell: bash
         run: |
+          set -euo pipefail
           sudo apt-get update
-          sudo apt-get install -y shellcheck yamllint
+          sudo apt-get install -y shellcheck yamllint shfmt || true
+          if ! command -v shfmt >/dev/null 2>&1; then
+            echo "[WARN] apt 无 shfmt，使用官方二进制回退安装"
+            curl -sSL -o /tmp/shfmt https://github.com/mvdan/sh/releases/download/v3.8.0/shfmt_v3.8.0_linux_amd64
+            sudo install -m 0755 /tmp/shfmt /usr/local/bin/shfmt
+          fi
+          shellcheck --version
+          yamllint --version
+          shfmt -version
+
+      # Python 工具有 pip 安装（仅 ruff / black）
+      - name: Install Python linters (pip)
+        run: |
+          python -m pip install -U pip
+          pip install ruff black
+
       - name: Shellcheck (-x)
         run: |
           shopt -s globstar nullglob
           shellcheck -x -S error scripts/*.sh
+
       - name: Yaml lint (non-blocking)
         continue-on-error: true
         run: yamllint . || echo "yamllint found issues (non-blocking)"
+
+      # shfmt 建议先设为非阻塞，避免格式小差异阻塞 PR；若需强制，通过去掉 continue-on-error 即可
+      - name: shfmt check (non-blocking)
+        continue-on-error: true
+        run: |
+          shfmt -d -i 2 -ci -sr scripts || echo "shfmt suggested changes (non-blocking)"
+
       - name: Markdown lint
         continue-on-error: true
         run: |
           npx --yes markdownlint-cli@0.39.0 \
             -c .markdownlint.yml "**/*.md" \
             || echo "markdownlint found issues (non-blocking)"
+
       - name: Bash syntax check
         run: bash -n scripts/*.sh
+
       - name: Snakemake dry-run (non-blocking)
         continue-on-error: true
         run: |

@@ -1,0 +1,29 @@
+name: Security (non-blocking)
+on: [pull_request, push]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          args: detect --no-banner --redact
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: pip-audit
+        continue-on-error: true
+        run: |
+          python -m pip install -U pip pip-audit
+          pip-audit || true
+
+      - name: Bandit
+        continue-on-error: true
+        run: |
+          python -m pip install -U bandit
+          bandit -q -r scripts || true

@@ -448,3 +448,8 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 ---
 
 **命名建议**：本项目在文档中可简称 **CLS/Stepflow**；对外可称 “Seperate02（Contract-Locked Stepflow）”。
+
+### DVC 资产拉取（开发者本地）
+1) `pip install dvc[gdrive]`
+2) `dvc pull -n` 预演 / 首次 `dvc remote modify gdrive gdrive_use_service_account true`(可选)
+3) `dvc pull` 拉取模型/样例（仓库仅提供远端声明，不含令牌）
