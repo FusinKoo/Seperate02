@@ -1,0 +1,33 @@
+---
+extends: default
+
+rules:
+  document-start: disable
+
+  line-length:
+    max: 140
+    allow-non-breakable-words: true
+    level: warning
+
+  indentation:
+    indent-sequences: false
+    check-multi-line-strings: false
+
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
+    level: warning
+
+  trailing-spaces: enable
+  colons: enable
+  comments:
+    require-starting-space: true
+  empty-lines:
+    max: 2
+
+ignore: |
+  .venv/
+  venv/
+  /vol/
+  node_modules/
+  **/.ipynb_checkpoints/**
+

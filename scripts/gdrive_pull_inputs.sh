@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 # shellcheck shell=bash
 set -euo pipefail
 export LC_ALL=C.UTF-8

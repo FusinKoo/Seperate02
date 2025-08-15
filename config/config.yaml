@@ -1,0 +1,28 @@
+---
+slugs: []   # leave empty to scan /vol/work/*/.lock; or explicit: ["demo_slug"]
+paths:
+  vol: /vol
+  inbox: /vol/inbox
+  work: /vol/work
+  out: /vol/out
+  models: /vol/models
+  assets: /vol/assets
+  logs: /vol/logs
+rvc:
+  pth: /vol/models/G_8200.pth
+  index: /vol/models/G_8200.index
+  algo: v2
+gdrive:
+  enabled: false
+  remote: gdrive
+  root: Seperate02
+resources:
+  parallel_songs: 2
+  gpu_per_job: 1
+qc:
+  vocal_lufs: -18.5
+  inst_lufs: -20.0
+  lufs_tol: 0.2
+  peak_dbfs_max: -3.0
+  drift_max: 0.005
+

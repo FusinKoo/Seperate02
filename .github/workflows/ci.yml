@@ -1,25 +1,31 @@
+---
 name: CI
-on: [push, pull_request]
+
+on:
+  push:
+    branches: [work, main, master]
+  pull_request:
+    branches: [work, main, master]
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck yamllint
-      - name: Shellcheck (-x)
-        run: |
-          shopt -s globstar nullglob
-          shellcheck -x -S error scripts/*.sh
-      - name: Yaml lint
-        run: yamllint .
-      - name: Markdown lint
-        continue-on-error: true
-        run: |
-          npx --yes markdownlint-cli@0.39.0 \
-            -c .markdownlint.yml "**/*.md" \
-            || echo "markdownlint found issues (non-blocking)"
-      - name: Bash syntax check
-        run: bash -n scripts/*.sh
+    - uses: actions/checkout@v4
+
+    - name: Install tools
+      run: |
+        pipx install "yamllint==1.35.1"
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+        npm i -g markdownlint-cli@0.42.0
+
+    - name: Yaml lint
+      run: yamllint -c .yamllint.yaml .
+
+    - name: Markdown lint
+      run: markdownlint "**/*.md"
+
+    - name: Bash syntax check
+      run: shellcheck -x scripts/*.sh
+

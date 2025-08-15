@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 set -euo pipefail
 
 usage() {
@@ -67,14 +68,19 @@ if ! $CHECK_ONLY; then
   move_if_found "rmvpe.onnx" "$SS_ASSETS_DIR/rmvpe.onnx"
 fi
 
+have_asset(){
+  local name="$1"
+  [[ -f "$SS_ASSETS_DIR/$name" ]] || find "$LOCAL" -maxdepth 2 -name "$name" -print -quit >/dev/null 2>&1
+}
+
 missing=()
 [[ -f "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx" ]] || missing+=("UVR-MDX-NET-Inst_HQ_3.onnx")
 [[ -f "$LOCAL/UVR/Kim_Vocal_2.onnx" ]] || missing+=("Kim_Vocal_2.onnx")
 [[ -f "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx" ]] || missing+=("Reverb_HQ_By_FoxJoy.onnx")
 [[ -f "$LOCAL/RVC/G_8200.pth" ]] || missing+=("G_8200.pth")
 [[ -f "$LOCAL/RVC/G_8200.index" ]] || missing+=("G_8200.index")
-[[ -f "$SS_ASSETS_DIR/hubert_base.pt" ]] || missing+=("hubert_base.pt")
-[[ -f "$SS_ASSETS_DIR/rmvpe.onnx" ]] || missing+=("rmvpe.onnx")
+have_asset "hubert_base.pt" || missing+=("hubert_base.pt")
+have_asset "rmvpe.onnx" || missing+=("rmvpe.onnx")
 
 if [ ${#missing[@]} -ne 0 ]; then
   echo "[ERR] Missing models: ${missing[*]}" >&2

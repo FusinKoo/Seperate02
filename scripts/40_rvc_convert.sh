@@ -30,7 +30,7 @@ fi
 
 SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="$3"; RVC_VER="${4:-v2}"
 BASE="$SS_WORK/${SLUG}"; OUTDIR="$SS_OUT/${SLUG}"; mkdir -p "$OUTDIR"
-IN="$BASE/03_main_vocal_dry.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
+IN="$BASE/03_main_clean.wav"; [ -f "$IN" ] || { echo "[ERR] $IN"; exit 1; }
 
 [[ -f "$RVC_PTH" ]] || { echo "[ERR] RVC model not found: $RVC_PTH. Place model in $SS_MODELS_DIR/RVC/ or set SS_RVC_PTH"; exit 1; }
 [[ -f "$RVC_INDEX" ]] || { echo "[ERR] RVC index not found: $RVC_INDEX. Place index in $SS_MODELS_DIR/RVC/ or set SS_RVC_INDEX"; exit 1; }
