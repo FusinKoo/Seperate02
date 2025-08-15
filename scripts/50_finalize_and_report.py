@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 import os, sys, json, argparse, hashlib, time
 
-TARGET_LUFS_INST = -20.0
-TARGET_LUFS_LEAD = -18.5
+# allow tuning targets via environment variables
+TARGET_LUFS_INST = float(os.getenv('SS_TARGET_LUFS_INST', '-20.0'))
+TARGET_LUFS_LEAD = float(os.getenv('SS_TARGET_LUFS_LEAD', '-18.5'))
 PEAK_CEIL = 10 ** (-3.0/20)
 OUT_SR = 48000
 
@@ -97,12 +98,22 @@ def main(argv=None):
 
     inst_f, lead_f, limited, peak_before = peak_limit_pair(inst_s, lead_s, np)
 
+    # metrics after limiting
+    final_peak = max(float(np.max(np.abs(inst_f))), float(np.max(np.abs(lead_f))))
+    lufs_i_f = measure_lufs(inst_f, OUT_SR, pyln)
+    lufs_l_f = measure_lufs(lead_f, OUT_SR, pyln)
+
     sf.write(inst_out, inst_f, OUT_SR, subtype='PCM_24')
     sf.write(lead_out, lead_f, OUT_SR, subtype='PCM_24')
 
     ref_len = len(inst_f)
     lead_len = len(lead_f)
     drift = abs(lead_len - ref_len) / max(1, ref_len)
+
+    tol = 0.2
+    lufs_ok = (abs(lufs_i_f - TARGET_LUFS_INST) <= tol and
+               abs(lufs_l_f - TARGET_LUFS_LEAD) <= tol)
+    peak_ok = final_peak <= PEAK_CEIL
 
     report = {
         'slug': slug,
@@ -112,15 +123,22 @@ def main(argv=None):
         'gains': {'instrumental': float(g_i), 'lead': float(g_l)},
         'peak_before': peak_before,
         'peak_limited': bool(limited),
+        'final_lufs': {'instrumental': lufs_i_f, 'lead': lufs_l_f},
+        'final_peak': final_peak,
         'sr': OUT_SR,
         'length': {'instrumental': int(ref_len), 'lead': int(lead_len)},
         'length_drift_ratio': float(drift),
-        'pass': (drift <= 0.005)
+        'pass': (drift <= 0.005 and lufs_ok and peak_ok)
     }
     with open(f"{outd}/quality_report.json", 'w') as f:
         json.dump(report, f, indent=2)
     if not report['pass']:
-        print(f'[ERR] Length drift too large: {report["length_drift_ratio"]}', file=sys.stderr)
+        if drift > 0.005:
+            print(f'[ERR] Length drift too large: {report["length_drift_ratio"]}', file=sys.stderr)
+        if not lufs_ok:
+            print(f'[ERR] LUFS out of tolerance: inst {lufs_i_f:.2f}, lead {lufs_l_f:.2f}', file=sys.stderr)
+        if not peak_ok:
+            print(f'[ERR] Peak above ceiling: {final_peak:.4f} > {PEAK_CEIL:.4f}', file=sys.stderr)
         return 1
 
     providers = os.getenv('SS_ORT_PROVIDERS')
