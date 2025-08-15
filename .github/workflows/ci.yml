@@ -24,3 +24,8 @@ jobs:
             || echo "markdownlint found issues (non-blocking)"
       - name: Bash syntax check
         run: bash -n scripts/*.sh
+      - name: Snakemake dry-run (non-blocking)
+        continue-on-error: true
+        run: |
+          pipx install "snakemake>=9,<10" || pip install "snakemake>=9,<10"
+          snakemake -s Snakefile --cores 1 -n || echo "snakemake dry-run skipped"

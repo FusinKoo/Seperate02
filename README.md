@@ -23,6 +23,7 @@
 - [并发与吞吐策略](#并发与吞吐策略)
 - [失败恢复与可复现](#失败恢复与可复现)
 - [Roadmap](#roadmap)
+- [Snakemake 参考资料](#snakemake-参考资料)
 - [FAQ](#faq)
 - [许可与第三方声明](#许可与第三方声明)
 
@@ -411,6 +412,17 @@ python -m stepflow.cli.ssflow --manifest examples/demo.yaml
 - [ ] Docker 镜像（锁定 CUDA/ORT/Python 版本）
 - [ ] CI：仅做 lint/构建，不跑模型（避免泄露与不稳定）
 - [ ] 指标采集：批处理成功率、耗时分布、显存峰值（写入 trace）
+
+---
+
+## Snakemake 参考资料
+
+- 官网：[Snakemake](https://snakemake.github.io)
+- 文档首页：[Snakemake 9.x Docs](https://snakemake.readthedocs.io/en/stable/)
+- 安装指南：[Installation](https://snakemake.readthedocs.io/en/stable/getting_started/installation.html)
+- CLI 参考：[Command Line Interface](https://snakemake.readthedocs.io/en/stable/executing/cli.html)
+- 源码仓库：[GitHub - snakemake/snakemake](https://github.com/snakemake/snakemake)
+- Profiles 生态：[Snakemake Profiles](https://snakemake.readthedocs.io/en/stable/executing/profile.html)
 
 ---
 
