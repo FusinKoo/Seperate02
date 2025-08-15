@@ -1,0 +1,12 @@
+# 运行时基础路径（Runpod /vol 约定）
+SS_WORK: /vol/work
+SS_OUT: /vol/out
+
+# RVC 模型默认值（可在命令行 --config 覆盖）
+rvc_pth: /vol/models/RVC/G_8200.pth
+rvc_index: /vol/models/RVC/G_8200.index
+rvc_ver: v2
+
+# 必填：处理哪个 slug（由 gdrive_pull_inputs.sh 生成）
+# slug: your_slug_here
+

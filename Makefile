@@ -97,3 +97,13 @@ clean-cache:
 index-first:
 > @echo "Use scripts/70_build_index_from_wav.py to build index:"
 > @echo "  ${SS_RVC_VENV:-/vol/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"
+
+# --- Snakemake integration ---
+snk-dry:
+> snakemake -s Snakefile --cores 1 -n
+
+snk-run:
+> snakemake -s Snakefile --profile profiles/runpod
+
+snk-run-slug:
+> snakemake -s Snakefile --profile profiles/runpod --config slug=$(slug)
