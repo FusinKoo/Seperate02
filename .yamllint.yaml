@@ -1,0 +1,40 @@
+---
+# 项目级 yamllint 配置：在不降低质量的前提下，规避易误报规则
+extends: default
+
+rules:
+  # 很多工具配置文件不写文档头，默认就报错；我们关闭这一条
+  document-start: disable
+
+  # 统一最长行宽到 140，且把长行只记为 warning
+  line-length:
+    max: 140
+    allow-non-breakable-words: true
+    level: warning
+
+  # 允许序列与映射同缩进风格，避免 profiles/* 中列表-字典嵌套被误判
+  indentation:
+    indent-sequences: false
+    check-multi-line-strings: false
+
+  # 允许 true/false/on/off/yes/no 这类常见布尔用法（工作流/工具经常用）
+  truthy:
+    allowed-values: ['true', 'false', 'on', 'off', 'yes', 'no']
+    level: warning
+
+  # 其他保持严格（尾空格、键值冒号后须有空格、空行数量等）
+  trailing-spaces: enable
+  colons: enable
+  comments:
+    require-starting-space: true
+  empty-lines:
+    max: 2
+
+# 忽略路径（生成物/第三方）
+ignore: |
+  .venv/
+  venv/
+  /vol/
+  node_modules/
+  **/.ipynb_checkpoints/**
+

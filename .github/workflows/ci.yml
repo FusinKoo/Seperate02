@@ -1,3 +1,4 @@
+---
 name: CI
 on: [push, pull_request]
 jobs:
@@ -7,19 +8,19 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install tools
         run: |
-          sudo apt-get update
-          sudo apt-get install -y shellcheck yamllint
+          pipx install 'yamllint==1.35.1'
+          npm i -g 'markdownlint-cli@0.42.0'
+          sudo apt-get update && sudo apt-get install -y shellcheck
       - name: Shellcheck (-x)
         run: |
           shopt -s globstar nullglob
           shellcheck -x -S error scripts/*.sh
       - name: Yaml lint
-        run: yamllint .
+        run: yamllint -c .yamllint.yaml .
       - name: Markdown lint
         continue-on-error: true
         run: |
-          npx --yes markdownlint-cli@0.39.0 \
-            -c .markdownlint.yml "**/*.md" \
+          markdownlint -c .markdownlint.yml "**/*.md" \
             || echo "markdownlint found issues (non-blocking)"
       - name: Bash syntax check
         run: bash -n scripts/*.sh

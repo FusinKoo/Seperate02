@@ -147,6 +147,31 @@ def main(argv=None):
     else:
         providers = ort.get_available_providers()
 
+    import subprocess
+    def git_info():
+        try:
+            branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
+            head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+            try:
+                subprocess.check_call(['git', 'diff-index', '--quiet', 'HEAD', '--'])
+                dirty = False
+            except subprocess.CalledProcessError:
+                dirty = True
+        except Exception:
+            branch = head = None
+            dirty = None
+        return branch, head, dirty
+
+    def gpu_name():
+        try:
+            out = subprocess.check_output(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], text=True)
+            return out.strip().splitlines()[0]
+        except Exception:
+            return None
+
+    git_branch, git_head, is_dirty = git_info()
+    gpu = gpu_name()
+
     models = {
         'uvr_sep': model_info(os.path.join(SS_MODELS_DIR, 'UVR', 'UVR-MDX-NET-Inst_HQ_3.onnx')),
         'uvr_main': model_info(os.path.join(SS_MODELS_DIR, 'UVR', 'Kim_Vocal_2.onnx')),
@@ -170,7 +195,11 @@ def main(argv=None):
             'lead_out': lead_out
         },
         'env': {k: os.getenv(k) for k in ['SS_MODELS_DIR', 'SS_ORT_PROVIDERS']},
-        'providers_snapshot': providers,
+        'ort_providers': providers,
+        'gpu': gpu,
+        'git_branch': git_branch,
+        'git_head': git_head,
+        'is_dirty': is_dirty,
         'models': models,
         'steps_time_sec': steps_time,
         'elapsed_sec': time.time() - t0

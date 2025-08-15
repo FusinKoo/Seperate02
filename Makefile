@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean
+.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean snk-dry snk-run snk-graph
 
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
@@ -21,8 +21,11 @@ help:
 > @echo "  wheels-push    - push wheels to gdrive"
 > @echo "  venv-clean     - remove venvs"
 > @echo "  doctor      - space check"
-> @echo "  preflight   - run sanity and space checks"
+> @echo "  preflight   - basic volume checks"
 > @echo "  clean-cache - remove caches"
+> @echo "  snk-dry    - Snakemake dry run"
+> @echo "  snk-run    - Snakemake run"
+> @echo "  snk-graph  - Snakemake DAG graph"
 > @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
 setup-lock:
@@ -75,8 +78,15 @@ preflight:
 > @mount | grep -E '[[:space:]]/vol[[:space:]]' || echo "[ERR] /vol 未挂载"
 > @df -h / /vol || true
 > @echo "RCLONE_CONFIG=$$RCLONE_CONFIG"; test -f "$$RCLONE_CONFIG" || echo "[WARN] RCLONE_CONFIG 未设置"
-> bash scripts/sanity_check.sh || true
-> bash scripts/doctor_space.sh
+
+snk-dry:
+> @snakemake --profile profiles/dryrun
+
+snk-run:
+> @snakemake --profile profiles/runpod
+
+snk-graph:
+> @snakemake --profile profiles/dryrun --dag | dot -Tpng > audit_dag.png && echo "[OK] DAG -> audit_dag.png"
 
 setup-split:
 > @if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; else bash scripts/00_setup_env_split.sh; fi
