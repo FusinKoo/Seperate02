@@ -5,9 +5,11 @@ export LC_ALL=C.UTF-8
 
 usage(){
   cat <<'USAGE'
-Usage: scripts/gdrive_push_outputs.sh <slug>
+Usage: scripts/gdrive_push_outputs.sh [--dry-run] <slug>
 Desc : 上传 /vol/out/<slug> 至 GDrive，并按 .src 把原始输入移至 processed/ 或 failed/
 Env  : SS_OUT, SS_WORK, SS_GDRIVE_REMOTE, SS_GDRIVE_ROOT
+Options:
+  --dry-run  Show rclone operations without transferring files
 USAGE
 }
 ensure_vol_mount() {
@@ -18,9 +20,16 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+DRY_RUN=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0;;
+    --dry-run) DRY_RUN=true; shift;;
+    *) break;;
+  esac
+done
 ensure_vol_mount
-[[ -n "${1:-}" ]] || { usage; exit 2; }
+[[ $# -gt 0 ]] || { usage; exit 2; }
 slug="$1"
 SS_OUT=${SS_OUT:-/vol/out}
 SS_WORK=${SS_WORK:-/vol/work}
@@ -39,8 +48,10 @@ outdir="$SS_OUT/$slug"
 [[ -d "$outdir" ]] || { echo "[ERR] missing outdir: $outdir"; exit 1; }
 
 # 上传最终产物
-RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list)
-rclone copy "$outdir" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/out/${slug}" --checksum "${RCLONE_OPTS[@]}"
+RCLONE_GLOBAL=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
+$DRY_RUN && RCLONE_GLOBAL+=(--dry-run)
+rclone_cmd(){ echo "+ rclone ${RCLONE_GLOBAL[*]} $*" >&2; rclone "${RCLONE_GLOBAL[@]}" "$@"; }
+rclone_cmd copy "$outdir" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/out/${slug}" --checksum
 
 # 判定成功/失败
 pass=false
@@ -50,18 +61,18 @@ fi
 
 if $pass; then
   # 移动原始文件到 processed
-  rclone moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/processed/${fname}" "${RCLONE_OPTS[@]}" || true
+  rclone_cmd moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/processed/${fname}" || true
   # 上传 per‑song run.log
   LOG_LOCAL="$SS_WORK/$slug/run.log"
   if [[ -f "$LOG_LOCAL" ]]; then
     TS=$(date -u +%Y%m%d)
-    rclone copyto "$LOG_LOCAL" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/logs/${TS}/${slug}_run.log" --checksum "${RCLONE_OPTS[@]}" || true
+    rclone_cmd copyto "$LOG_LOCAL" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/logs/${TS}/${slug}_run.log" --checksum || true
   fi
   # 清理工作目录（成功后）
   rm -rf "$SS_WORK/$slug" || true
 else
   # 失败：移动到 failed 并写原因
-  rclone moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}" "${RCLONE_OPTS[@]}" || true
+  rclone_cmd moveto "$remote_path" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}" || true
   reason_file="/tmp/${slug}.reason.txt"
   echo "Seperate02 failure for $slug" > "$reason_file"
   [[ -f "$outdir/quality_report.json" ]] && {
@@ -73,7 +84,7 @@ else
     echo -e "\n--- run.log (tail -n 200) ---" >> "$reason_file"
     tail -n 200 "$SS_WORK/$slug/run.log" >> "$reason_file" || true
   fi
-  rclone copyto "$reason_file" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}.reason.txt" "${RCLONE_OPTS[@]}"
+  rclone_cmd copyto "$reason_file" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/inbox/failed/${fname}.reason.txt"
   rm -f "$reason_file"
 fi
 

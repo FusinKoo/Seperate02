@@ -5,10 +5,12 @@ export LC_ALL=C.UTF-8
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/gdrive_pull_inputs.sh
+Usage: scripts/gdrive_pull_inputs.sh [--dry-run]
 Desc : 递归扫描 ${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs/ 并将新歌拉取至 ${SS_INBOX}；
-       自动生成 slug、创建 .lock/.src。无需参数。
+       自动生成 slug、创建 .lock/.src。
 Env  : SS_GDRIVE_REMOTE, SS_GDRIVE_ROOT, SS_INBOX, SS_WORK
+Options:
+  --dry-run  Show rclone operations without transferring files
 USAGE
 }
 ensure_vol_mount() {
@@ -19,7 +21,14 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+DRY_RUN=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0;;
+    --dry-run) DRY_RUN=true; shift;;
+    *) echo "[ERR] Unknown option: $1" >&2; usage; exit 2;;
+  esac
+done
 ensure_vol_mount
 
 # vars & dirs
@@ -32,8 +41,10 @@ mkdir -p "$SS_INBOX" "$SS_WORK"
 is_audio(){ case "${1,,}" in *.wav|*.flac|*.m4a|*.mp3) return 0;; *) return 1;; esac }
 
 # 递归列出 songs 下的候选文件
-RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list)
-mapfile -t FILES < <(rclone lsf -R --files-only "${RCLONE_OPTS[@]}" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs" || true)
+RCLONE_GLOBAL=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
+$DRY_RUN && RCLONE_GLOBAL+=(--dry-run)
+rclone_cmd(){ echo "+ rclone ${RCLONE_GLOBAL[*]} $*" >&2; rclone "${RCLONE_GLOBAL[@]}" "$@"; }
+mapfile -t FILES < <(rclone_cmd lsf -R --files-only "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs" || true)
 
 for rel in "${FILES[@]:-}"; do
   [[ -n "$rel" ]] || continue
@@ -43,7 +54,7 @@ for rel in "${FILES[@]:-}"; do
 
   # 拉取到临时路径
   tmp_local="${SS_INBOX}/.__tmp__${fname}"
-  rclone copyto "$src_remote" "$tmp_local" --checksum "${RCLONE_OPTS[@]}" || continue
+  rclone_cmd copyto "$src_remote" "$tmp_local" --checksum || continue
 
   # 计算 slug（Unicode 保留 + 内容哈希）
   slug=$(python3 "$(dirname "$0")/slugify.py" --file "$tmp_local" --orig-name "$fname")
