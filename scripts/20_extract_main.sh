@@ -16,6 +16,7 @@ set +u; [ -f .env ] && . .env; set -u
 SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Kim_Vocal_2.onnx"
 WORK_DIR="$SS_WORK/$SLUG"; IN="$WORK_DIR/01_vocals_mix.wav"; [[ -f "$IN" ]] || { echo "[ERR] missing $IN"; exit 3; }
+ffmpeg -y -v error -i "$IN" -ac 2 -ar 48000 -c:a pcm_s16le "$IN"
 "$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV \
   --mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0 --amplification 0 "$IN"
 shopt -s nullglob

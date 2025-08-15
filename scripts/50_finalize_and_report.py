@@ -146,6 +146,18 @@ def main(argv=None):
         providers = providers.split(',')
     else:
         providers = ort.get_available_providers()
+    try:
+        import subprocess
+        git_branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], text=True).strip()
+        git_head = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+        is_dirty = subprocess.call(['git', 'diff', '--quiet']) != 0
+    except Exception:
+        git_branch = git_head = None
+        is_dirty = None
+    try:
+        gpu = subprocess.check_output(['nvidia-smi', '--query-gpu=name', '--format=csv,noheader'], text=True).strip().splitlines()
+    except Exception:
+        gpu = None
 
     models = {
         'uvr_sep': model_info(os.path.join(SS_MODELS_DIR, 'UVR', 'UVR-MDX-NET-Inst_HQ_3.onnx')),
@@ -170,10 +182,14 @@ def main(argv=None):
             'lead_out': lead_out
         },
         'env': {k: os.getenv(k) for k in ['SS_MODELS_DIR', 'SS_ORT_PROVIDERS']},
-        'providers_snapshot': providers,
+        'ort_providers': providers,
         'models': models,
         'steps_time_sec': steps_time,
-        'elapsed_sec': time.time() - t0
+        'elapsed_sec': time.time() - t0,
+        'git_branch': git_branch,
+        'git_head': git_head,
+        'git_is_dirty': is_dirty,
+        'gpu': gpu
     }
     with open(f"{outd}/trace.json", 'w') as f:
         json.dump(trace, f, indent=2)
