@@ -45,14 +45,21 @@ remote_path="$(kv_get remote_path "$srcf")"
 fname="$(kv_get original_name "$srcf")"
 [[ -n "$remote_path" && -n "$fname" ]] || { echo "[ERR] $srcf malformed" >&2; exit 1; }
 outdir="$SS_OUT/$slug"
+if [[ ! -d "$outdir" ]]; then
+  echo "[WARN] local out dir missing: $outdir ; skip push."
+  exit 0
+fi
 
-[[ -d "$outdir" ]] || { echo "[ERR] missing outdir: $outdir"; exit 1; }
+REMOTE_BASE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT"
+rclone mkdir "$REMOTE_BASE/out" || true
+rclone mkdir "$REMOTE_BASE/failed" || true
+rclone mkdir "$REMOTE_BASE/processed" || true
 
 # 上传最终产物
 RCLONE_GLOBAL=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
 $DRY_RUN && RCLONE_GLOBAL+=(--dry-run)
 rclone_cmd(){ echo "+ rclone ${RCLONE_GLOBAL[*]} $*" >&2; rclone "${RCLONE_GLOBAL[@]}" "$@"; }
-rclone_cmd copy "$outdir" "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/out/${slug}" --checksum
+rclone_cmd copy "$outdir" "$REMOTE_BASE/out/$slug" --checksum
 
 # 判定成功/失败
 pass=false
