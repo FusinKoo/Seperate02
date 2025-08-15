@@ -11,6 +11,13 @@ source "$SCRIPT_DIR/env.sh"
 
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
+
+usage(){ cat <<USAGE
+Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
+USAGE
+}
+[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
+
 # requires $SS_UVR_VENV/bin/audio-separator and RVC CLI or module
 command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
 if [ -x "$RVC_BIN/rvc" ]; then
@@ -20,13 +27,6 @@ elif [ -x "$SS_RVC_VENV/bin/python" ]; then
 else
   echo "[ERR] rvc not found; run scripts/00_setup_env_split.sh"; exit 2;
 fi
-
-usage(){ cat <<USAGE
-Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
-USAGE
-}
-[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
-
 
 SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="$3"; RVC_VER="${4:-v2}"
 BASE="$SS_WORK/${SLUG}"; OUTDIR="$SS_OUT/${SLUG}"; mkdir -p "$OUTDIR"
