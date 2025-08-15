@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first
+.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean
 
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
@@ -16,6 +16,10 @@ help:
 > @echo "  batch model=<pth> index=<idx> ver=<v1|v2>"
 > @echo "  push        - push processed outputs"
 > @echo "  backup      - backup outputs to gdrive"
+> @echo "  wheels-prepare - predownload wheels"
+> @echo "  wheels-pull    - pull wheels from gdrive"
+> @echo "  wheels-push    - push wheels to gdrive"
+> @echo "  venv-clean     - remove venvs"
 > @echo "  doctor      - space check"
 > @echo "  preflight   - run sanity and space checks"
 > @echo "  clean-cache - remove caches"
@@ -55,7 +59,22 @@ push:
 backup:
 > bash scripts/90_backup_gdrive.sh
 
+wheels-prepare:
+> @bash scripts/wheels_prepare.sh
+
+wheels-pull:
+> @bash scripts/wheels_pull.sh
+
+wheels-push:
+> @bash scripts/wheels_push.sh
+
+venv-clean:
+> @rm -rf /vol/venvs/uvr /vol/venvs/rvc
+
 preflight:
+> @mount | grep -E '[[:space:]]/vol[[:space:]]' || echo "[ERR] /vol 未挂载"
+> @df -h / /vol || true
+> @echo "RCLONE_CONFIG=$$RCLONE_CONFIG"; test -f "$$RCLONE_CONFIG" || echo "[WARN] RCLONE_CONFIG 未设置"
 > bash scripts/sanity_check.sh || true
 > bash scripts/doctor_space.sh
 
