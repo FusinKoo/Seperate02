@@ -26,7 +26,14 @@ help:
 > @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
 setup-lock:
-> pip install -r requirements-locked.txt --require-hashes
+> @H=$$(grep -c -- '--hash=sha256:' requirements-locked.txt || true); \
+> if [ "$$H" -gt 0 ]; then \
+>   echo "[INFO] using --require-hashes"; \
+>   python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install --require-hashes -r requirements-locked.txt; \
+> else \
+>   echo "[WARN] no hashes in requirements-locked.txt; installing without --require-hashes"; \
+>   python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install -r requirements-locked.txt; \
+> fi
 
 setup:
 > bash scripts/00_setup_env_split.sh

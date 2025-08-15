@@ -4,7 +4,8 @@ import os, sys, json, argparse, hashlib, time
 # allow tuning targets via environment variables
 TARGET_LUFS_INST = float(os.getenv('SS_TARGET_LUFS_INST', '-20.0'))
 TARGET_LUFS_LEAD = float(os.getenv('SS_TARGET_LUFS_LEAD', '-18.5'))
-PEAK_CEIL = 10 ** (-3.0/20)
+LUFS_TOL = 0.2
+PEAK_CEIL = 10 ** (-3.0/20)  # -3 dBFS
 OUT_SR = 48000
 
 SS_WORK = os.getenv('SS_WORK', '/vol/work')
@@ -66,7 +67,7 @@ def main(argv=None):
     except Exception as e:
         print('[ERR] missing dependency:', e, file=sys.stderr)
         print('[ERR] run `pip install -r requirements-locked.txt`', file=sys.stderr)
-        return 1
+        return 3
 
     t0 = time.time()
     slug = args.slug
@@ -110,9 +111,8 @@ def main(argv=None):
     lead_len = len(lead_f)
     drift = abs(lead_len - ref_len) / max(1, ref_len)
 
-    tol = 0.2
-    lufs_ok = (abs(lufs_i_f - TARGET_LUFS_INST) <= tol and
-               abs(lufs_l_f - TARGET_LUFS_LEAD) <= tol)
+    lufs_ok = (abs(lufs_i_f - TARGET_LUFS_INST) <= LUFS_TOL and
+               abs(lufs_l_f - TARGET_LUFS_LEAD) <= LUFS_TOL)
     peak_ok = final_peak <= PEAK_CEIL
 
     report = {
@@ -139,7 +139,7 @@ def main(argv=None):
             print(f'[ERR] LUFS out of tolerance: inst {lufs_i_f:.2f}, lead {lufs_l_f:.2f}', file=sys.stderr)
         if not peak_ok:
             print(f'[ERR] Peak above ceiling: {final_peak:.4f} > {PEAK_CEIL:.4f}', file=sys.stderr)
-        return 1
+        return 3
 
     providers = os.getenv('SS_ORT_PROVIDERS')
     if providers:

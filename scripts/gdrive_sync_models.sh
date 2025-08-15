@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 
 usage() {
   cat <<USG
