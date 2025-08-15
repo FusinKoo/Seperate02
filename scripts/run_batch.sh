@@ -2,11 +2,6 @@
 set -euo pipefail
 export LC_ALL=C.UTF-8
 
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
-UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
-# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
-command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
-
 usage(){
   cat <<'USAGE'
 Usage: scripts/run_batch.sh <rvc_model.pth> <rvc.index> [v1|v2]
@@ -14,6 +9,14 @@ Desc : 基于 $SS_WORK/*/.lock 队列并发处理多首歌，每首日志写入 
 Env  : SS_WORK, SS_PARALLEL_JOBS
 USAGE
 }
+
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+
+: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
+UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
+# requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
+command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
+
 ensure_vol_mount() {
   if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
     echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
@@ -22,7 +25,6 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
 ensure_vol_mount
 [[ -n "${1:-}" && -n "${2:-}" ]] || { usage; exit 2; }
 

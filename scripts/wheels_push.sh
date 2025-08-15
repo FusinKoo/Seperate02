@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 PROFILE="${SS_WHEEL_PROFILE:-$(python3 - <<'PY'
 import sys,platform
 print(f"cp{sys.version_info.major}{sys.version_info.minor}-" +
