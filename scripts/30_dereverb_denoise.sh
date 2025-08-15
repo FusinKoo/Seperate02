@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-usage(){ echo "Usage: $0 <slug>"; exit 2; }
-SLUG=${1:-}; [[ -n "${SLUG:-}" ]] || usage
+usage(){
+  cat <<USG
+Usage: scripts/30_dereverb_denoise.sh <slug>
+Example: bash scripts/30_dereverb_denoise.sh myslug
+Env    : SS_WORK, SS_MODELS_DIR, SS_UVR_VENV
+USG
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+SLUG=${1:-}; [[ -n "${SLUG:-}" ]] || { usage; exit 2; }
 set +u; [ -f .env ] && . .env; set -u
 SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Reverb_HQ_By_FoxJoy.onnx"

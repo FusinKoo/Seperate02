@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-usage(){ echo "Usage: $0 <input_file> <slug>"; exit 2; }
-IN=${1:-}; SLUG=${2:-}; [[ -f "${IN:-}" && -n "${SLUG:-}" ]] || usage
+usage(){
+  cat <<USG
+Usage: scripts/10_separate_inst.sh <input_file> <slug>
+Example: bash scripts/10_separate_inst.sh song.wav myslug
+Env    : SS_WORK, SS_MODELS_DIR, SS_UVR_VENV
+USG
+}
+case "${1:-}" in -h|--help) usage; exit 0;; esac
+IN=${1:-}; SLUG=${2:-}; [[ -f "${IN:-}" && -n "${SLUG:-}" ]] || { usage; exit 2; }
 set +u; [ -f .env ] && . .env; set -u
 SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"

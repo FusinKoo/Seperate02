@@ -21,7 +21,7 @@ help:
 > @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
 setup-lock:
-> bash scripts/00_setup_env_split.sh
+> bash scripts/00_setup_env_split.sh --locked
 
 setup:
 > bash scripts/00_setup_env_split.sh

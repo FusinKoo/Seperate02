@@ -1,0 +1,8 @@
+UVR/UVR-MDX-NET-Inst_HQ_3.onnx
+UVR/Kim_Vocal_2.onnx
+UVR/Reverb_HQ_By_FoxJoy.onnx
+RVC/G_8200.pth
+RVC/G_8200.index
+assets/hubert_base.pt
+assets/rmvpe.onnx
+

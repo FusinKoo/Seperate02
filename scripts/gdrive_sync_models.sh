@@ -6,12 +6,20 @@ usage() {
 Usage: $(basename "$0") [options]
 Options:
   -h, --help   Show this help and exit
+      --check  Only verify required assets
 Examples:
-  make setup-split
   bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
 USG
 }
+
+CHECK_ONLY=false
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0;;
+    --check) CHECK_ONLY=true;;
+  esac
+done
+
 ensure_vol_mount() {
   if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
     echo "[ERR] /vol is not mounted. Please attach Network Volume at /vol in Runpod, then re-run." >&2
@@ -20,7 +28,6 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
 ensure_vol_mount
 
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,12 +40,40 @@ source "$SCRIPT_DIR/env.sh"
 
 REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models"
 LOCAL="$SS_MODELS_DIR"
+MANIFEST_DIR="$(dirname "$SCRIPT_DIR")/manifest"
+MANIFEST="$MANIFEST_DIR/models_required.txt"
 mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
 rclone mkdir "$REMOTE" >/dev/null 2>&1 || true
 
+RCLONE_OPTS=(--checksum --fast-list --transfers "${SS_RCLONE_TRANSFERS:-4}" --checkers "${SS_RCLONE_CHECKERS:-8}" --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}" --tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}")
+
+check_required(){
+  local missing=()
+  while read -r rel; do
+    [[ -z "$rel" || "$rel" =~ ^# ]] && continue
+    local path
+    if [[ "$rel" == assets/* ]]; then
+      path="$SS_ASSETS_DIR/${rel#assets/}"
+    else
+      path="$LOCAL/$rel"
+    fi
+    [[ -f "$path" ]] || missing+=("$rel")
+  done < "$MANIFEST"
+  if [ ${#missing[@]} -eq 0 ]; then
+    echo "[OK] all required assets present"
+    return 0
+  fi
+  echo "[ERR] missing assets: ${missing[*]}" >&2
+  return 3
+}
+
+if $CHECK_ONLY; then
+  check_required
+  exit $?
+fi
+
 # Sync all model files
-RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list)
-rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+rclone copy "$REMOTE" "$LOCAL" "${RCLONE_OPTS[@]}"
 
 # relocate expected files
 move_if_found(){
@@ -59,19 +94,10 @@ move_if_found "G_8200.index" "$LOCAL/RVC/G_8200.index"
 move_if_found "hubert_base.pt" "$SS_ASSETS_DIR/hubert_base.pt"
 move_if_found "rmvpe.onnx" "$SS_ASSETS_DIR/rmvpe.onnx"
 
-missing=()
-[[ -f "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx" ]] || missing+=("UVR-MDX-NET-Inst_HQ_3.onnx")
-[[ -f "$LOCAL/UVR/Kim_Vocal_2.onnx" ]] || missing+=("Kim_Vocal_2.onnx")
-[[ -f "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx" ]] || missing+=("Reverb_HQ_By_FoxJoy.onnx")
-[[ -f "$LOCAL/RVC/G_8200.pth" ]] || missing+=("G_8200.pth")
-[[ -f "$LOCAL/RVC/G_8200.index" ]] || missing+=("G_8200.index")
-[[ -f "$SS_ASSETS_DIR/hubert_base.pt" ]] || missing+=("hubert_base.pt")
-[[ -f "$SS_ASSETS_DIR/rmvpe.onnx" ]] || missing+=("rmvpe.onnx")
-
-if [ ${#missing[@]} -ne 0 ]; then
-  echo "[ERR] Missing models: ${missing[*]}" >&2
+if ! check_required; then
   echo "[ERR] Please upload missing files to $SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models/" >&2
   exit 1
 fi
 
 echo "[OK] Models synced to $LOCAL and $SS_ASSETS_DIR"
+
