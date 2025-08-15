@@ -96,9 +96,40 @@ Seperate02/
 必须先挂载 /vol（Network Volume）
 ![mount /vol screenshot placeholder](docs/mount_vol_placeholder.png)
 
+### Runpod 配置建议
+
+* **Container Disk**：10–20 GiB
+* **Volume Disk**：≥100 GiB，挂载路径固定 `/vol`
+* `/workspace` 为容器根盘，重建后内容会丢失；`/vol` 为持久网络盘，模型和缓存应全部放在 `/vol`
+
 > **提示**：长命令可通过 `\` 分行，或使用 `tmux` 保持会话。
 
-> **OAuth**：建议使用私有 OAuth 流程（或 Service Account），在本地执行 `rclone authorize "drive"` 生成配置，粘贴到 Runpod 并保存为 `/vol/rclone/rclone.conf`，然后在 `.env` 或 shell 中设定 `RCLONE_CONFIG=/vol/rclone/rclone.conf`。
+### OAuth 推荐配置
+
+建议使用私有 OAuth 客户端或 Service Account，在本地执行 `rclone authorize "drive"` 生成配置，将结果写入 `/vol/rclone/rclone.conf` 并设置：
+
+```bash
+export RCLONE_CONFIG=/vol/rclone/rclone.conf
+```
+
+`rclone.conf` 样例：
+
+```conf
+[gdrive]
+ type = drive
+ scope = drive
+ client_id = <your_client_id>
+ client_secret = <your_client_secret>
+ token = {"access_token":"...","refresh_token":"...","expiry":"..."}
+```
+
+### 常见故障速查
+
+- FFmpeg 缺失 → `apt-get install -y ffmpeg`
+- 403 / 配额 → 使用私有 OAuth 或 Service Account
+- `operands could not be broadcast` → 20/30 步统一 44.1 kHz + `--mdx_hop_length 1024`
+- `.src` 缺失 → 重跑 `gdrive_pull_inputs.sh` 或手工创建仅含 `local_inbox_path`
+
 
 ### 首次启动（8 行清单）
 

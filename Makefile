@@ -1,13 +1,16 @@
 .RECIPEPREFIX := >
 .PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup doctor clean-cache index-first
 
+CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
+
 help:
+> @$(CHECK_VOL)
 > @echo "Targets:"
 > @echo "  setup-lock  - install deps via lock file"
 > @echo "  setup-split - install dual venvs"
 > @echo "  sanity      - run environment checks"
-> @echo "  demo        - run demo song with fixed paths"
-> @echo "  env         - show key environment vars"
+> @echo "  demo        - run demo song with fixed paths (make demo)"
+> @echo "  env         - show key environment vars (make env)"
 > @echo "  one song=<slug>"
 > @echo "  pull        - pull songs from gdrive"
 > @echo "  batch model=<pth> index=<idx> ver=<v1|v2>"
@@ -15,7 +18,7 @@ help:
 > @echo "  backup      - backup outputs to gdrive"
 > @echo "  doctor      - space check"
 > @echo "  clean-cache - remove caches"
-> @echo "  index-first - build RVC index"
+> @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
 setup-lock:
 > bash scripts/00_setup_env_split.sh
@@ -52,10 +55,10 @@ backup:
 > bash scripts/90_backup_gdrive.sh
 
 setup-split:
-> - bash scripts/00_setup_env_split.sh || true
+> @if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; else bash scripts/00_setup_env_split.sh; fi
 
 doctor:
-> - bash scripts/doctor_space.sh || true
+> @if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; else bash scripts/doctor_space.sh; fi
 
 clean-cache:
 > bash scripts/cleanup_caches.sh

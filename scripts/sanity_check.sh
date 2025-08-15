@@ -17,9 +17,17 @@ SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 command -v nvidia-smi >/dev/null && nvidia-smi || echo "[WARN] nvidia-smi not found; install NVIDIA drivers" >&2
 
 if command -v audio-separator >/dev/null; then
-  audio-separator --env_info || true
+  ver=$(audio-separator --version 2>&1)
+  echo "audio-separator $ver"
+  [[ $ver == 0.35.2* ]] || echo "[WARN] expected audio-separator 0.35.2" >&2
 else
-  echo "[WARN] audio-separator not found; run scripts/00_setup_env.sh" >&2
+  echo "[WARN] audio-separator not found; run scripts/00_setup_env_split.sh" >&2
+fi
+
+if command -v ffmpeg >/dev/null; then
+  ffmpeg -version | head -n 1
+else
+  echo "[WARN] ffmpeg not found" >&2
 fi
 
 if [[ "${SS_FORCE_CPU:-0}" == 1 ]]; then
@@ -32,6 +40,13 @@ done
 
 echo "SS_INBOX=$SS_INBOX"; echo "SS_WORK=$SS_WORK"; echo "SS_OUT=$SS_OUT"
 echo "SS_MODELS_DIR=$SS_MODELS_DIR"; echo "SS_ASSETS_DIR=$SS_ASSETS_DIR"
+
+if mountpoint -q /vol; then
+  df -h /vol
+  echo "Top usage in /vol:"; du -h --max-depth=1 /vol | sort -hr | head -n 10
+else
+  echo "[WARN] /vol is not a mountpoint" >&2
+fi
 
 # ORT providers 检查
 python3 - <<'PY'

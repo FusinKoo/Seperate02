@@ -10,6 +10,9 @@ Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
   bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+
+Ensure /vol is mounted before running. In Runpod UI:
+  Stop Pod -> Attach Network Volume -> Mount path=/vol -> Start
 USG
 }
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"
@@ -26,6 +29,16 @@ ensure_vol_mount() {
 
 case "${1:-}" in -h|--help) usage; exit 0;; esac
 ensure_vol_mount
+
+if ! command -v ffmpeg >/dev/null 2>&1; then
+  if command -v apt-get >/dev/null 2>&1; then
+    echo "[WARN] ffmpeg not found. Install with: apt-get update && apt-get install -y --no-install-recommends ffmpeg" >&2
+  else
+    echo "[WARN] ffmpeg not found and apt-get unavailable; please install ffmpeg manually." >&2
+  fi
+else
+  ffmpeg -version | head -n 1
+fi
 
 # ensure string for rg checks
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
@@ -54,8 +67,10 @@ python3 -m venv "$SS_RVC_VENV"
 "$SS_UVR_VENV/bin/pip" cache purge || true
 "$SS_RVC_VENV/bin/pip" cache purge || true
 
-which "$SS_UVR_VENV/bin/audio-separator"
-which "$SS_RVC_VENV/bin/rvc"
+UVR_BIN="$SS_UVR_VENV/bin/audio-separator"
+RVC_BIN="$SS_RVC_VENV/bin/rvc"
+command -v "$UVR_BIN" >/dev/null && echo "[OK] UVR binary: $UVR_BIN ($("$UVR_BIN" --version))"
+command -v "$RVC_BIN" >/dev/null && echo "[OK] RVC binary: $RVC_BIN ($("$RVC_BIN" --version 2>/dev/null || echo unknown))"
 df -h / /vol "$SS_UVR_VENV" "$SS_RVC_VENV" "$SS_CACHE_DIR" 2>/dev/null || df -h
 
 echo "[OK] UVR venv: $SS_UVR_VENV"
