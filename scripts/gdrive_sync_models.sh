@@ -6,6 +6,7 @@ usage() {
 Usage: $(basename "$0") [options]
 Options:
   -h, --help   Show this help and exit
+      --check  Only verify required models exist locally; do not sync
 Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
@@ -20,7 +21,14 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+CHECK_ONLY=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) usage; exit 0;;
+    --check) CHECK_ONLY=true; shift;;
+    *) echo "[ERR] Unknown option: $1" >&2; usage; exit 2;;
+  esac
+done
 ensure_vol_mount
 
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -34,30 +42,30 @@ source "$SCRIPT_DIR/env.sh"
 REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models"
 LOCAL="$SS_MODELS_DIR"
 mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
-rclone mkdir "$REMOTE" >/dev/null 2>&1 || true
+RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
+if ! $CHECK_ONLY; then
+  rclone mkdir "$REMOTE" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
+  rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
 
-# Sync all model files
-RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list)
-rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+  # relocate expected files
+  move_if_found(){
+    local name="$1" dest="$2"
+    local found
+    found=$(find "$LOCAL" -type f -name "$name" | head -n1 || true)
+    if [ -n "$found" ]; then
+      mkdir -p "$(dirname "$dest")"
+      mv -f "$found" "$dest"
+    fi
+  }
 
-# relocate expected files
-move_if_found(){
-  local name="$1" dest="$2"
-  local found
-  found=$(find "$LOCAL" -type f -name "$name" | head -n1 || true)
-  if [ -n "$found" ]; then
-    mkdir -p "$(dirname "$dest")"
-    mv -f "$found" "$dest"
-  fi
-}
-
-move_if_found "UVR-MDX-NET-Inst_HQ_3.onnx" "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx"
-move_if_found "Kim_Vocal_2.onnx" "$LOCAL/UVR/Kim_Vocal_2.onnx"
-move_if_found "Reverb_HQ_By_FoxJoy.onnx" "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx"
-move_if_found "G_8200.pth" "$LOCAL/RVC/G_8200.pth"
-move_if_found "G_8200.index" "$LOCAL/RVC/G_8200.index"
-move_if_found "hubert_base.pt" "$SS_ASSETS_DIR/hubert_base.pt"
-move_if_found "rmvpe.onnx" "$SS_ASSETS_DIR/rmvpe.onnx"
+  move_if_found "UVR-MDX-NET-Inst_HQ_3.onnx" "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx"
+  move_if_found "Kim_Vocal_2.onnx" "$LOCAL/UVR/Kim_Vocal_2.onnx"
+  move_if_found "Reverb_HQ_By_FoxJoy.onnx" "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx"
+  move_if_found "G_8200.pth" "$LOCAL/RVC/G_8200.pth"
+  move_if_found "G_8200.index" "$LOCAL/RVC/G_8200.index"
+  move_if_found "hubert_base.pt" "$SS_ASSETS_DIR/hubert_base.pt"
+  move_if_found "rmvpe.onnx" "$SS_ASSETS_DIR/rmvpe.onnx"
+fi
 
 missing=()
 [[ -f "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx" ]] || missing+=("UVR-MDX-NET-Inst_HQ_3.onnx")
