@@ -19,6 +19,15 @@ USG
 : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 : "${SS_CACHE_DIR:=/vol/.cache}"
 
+if [ "${SS_USE_UV:-0}" = "1" ] && command -v uv >/dev/null 2>&1; then
+  echo "[INF] Using uv for installation"
+  uv venv "${SS_UVR_VENV:-/vol/venvs/uvr}"
+  . "${SS_UVR_VENV:-/vol/venvs/uvr}"/bin/activate
+  uv pip install -r requirements-locked.txt
+  exit 0
+fi
+
+
 # === add near the top (pip cache, wheel vars, signature helpers) ===
 sig_lock_sha(){ sha256sum requirements-locked.txt 2>/dev/null | awk '{print $1}'; }
 mk_profile(){

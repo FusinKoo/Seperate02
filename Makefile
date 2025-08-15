@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean
+.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean hooks lock-refresh uv-setup uv-install
 
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
@@ -37,8 +37,11 @@ setup-lock:
   fi
 
 setup:
-> bash scripts/00_setup_env_split.sh
-
+> if [ "$${SS_USE_UV:-0}" = "1" ]; then \
+>   $(MAKE) uv-setup; \
+> else \
+>   bash scripts/00_setup_env_split.sh; \
+> fi
 sanity:
 > bash scripts/sanity_check.sh
 
@@ -111,8 +114,16 @@ snk-run-slug:
 
 .PHONY: lock-refresh
 lock-refresh:
-> pipx install pip-tools || pip install pip-tools
-> pip-compile --resolver=backtracking --generate-hashes \
-    -o requirements-locked.txt \
-    requirements-uvr.txt requirements-rvc.txt
-> echo "[OK] requirements-locked.txt refreshed with hashes."
+> pip install -U pip-tools
+> pip-compile --generate-hashes -o requirements-locked.txt requirements-uvr.txt requirements-rvc.txt
+
+uv-setup:
+> uv venv /vol/venvs/uvr
+> . /vol/venvs/uvr/bin/activate && uv pip install -r requirements-locked.txt
+
+uv-install:
+> . /vol/venvs/uvr/bin/activate && uv pip install -r requirements-locked.txt
+
+hooks:
+> pip install pre-commit
+> pre-commit install
