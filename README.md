@@ -101,6 +101,7 @@ Seperate02/
 * **Container Disk**：10–20 GiB
 * **Volume Disk**：≥100 GiB，挂载路径固定 `/vol`
 * `/workspace` 为容器根盘，重建后内容会丢失；`/vol` 为持久网络盘，模型和缓存应全部放在 `/vol`
+* 容器初始化后先运行 `make preflight` 检查环境与空间
 
 > **提示**：长命令可通过 `\` 分行，或使用 `tmux` 保持会话。
 
@@ -135,7 +136,7 @@ export RCLONE_CONFIG=/vol/rclone/rclone.conf
 
 ```bash
 # 0) 体检与空间
-make doctor    # 不足则 make clean-cache
+make preflight # 不足则 make clean-cache
 
 # 1) 安装到 /vol（双环境）
 make setup-split

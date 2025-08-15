@@ -1,5 +1,5 @@
 .RECIPEPREFIX := >
-.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup doctor clean-cache index-first
+.PHONY: help setup-lock setup-split setup sanity demo env one pull batch push backup preflight doctor clean-cache index-first
 
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
@@ -17,6 +17,7 @@ help:
 > @echo "  push        - push processed outputs"
 > @echo "  backup      - backup outputs to gdrive"
 > @echo "  doctor      - space check"
+> @echo "  preflight   - run sanity and space checks"
 > @echo "  clean-cache - remove caches"
 > @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
@@ -53,6 +54,10 @@ push:
 
 backup:
 > bash scripts/90_backup_gdrive.sh
+
+preflight:
+> bash scripts/sanity_check.sh || true
+> bash scripts/doctor_space.sh
 
 setup-split:
 > @if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; else bash scripts/00_setup_env_split.sh; fi
