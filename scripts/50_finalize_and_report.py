@@ -107,38 +107,42 @@ def main(argv=None):
     sf.write(inst_out, inst_f, OUT_SR, subtype='PCM_24')
     sf.write(lead_out, lead_f, OUT_SR, subtype='PCM_24')
 
-    ref_len = len(inst_f)
-    lead_len = len(lead_f)
-    drift = abs(lead_len - ref_len) / max(1, ref_len)
+    lead_chk, sr = sf.read(lead_out, always_2d=True)
+    inst_chk, _ = sf.read(inst_out, always_2d=True)
+    lead_lufs = measure_lufs(lead_chk, sr, pyln)
+    inst_lufs = measure_lufs(inst_chk, sr, pyln)
+    lead_peak = float(abs(lead_chk).max())
+    inst_peak = float(abs(inst_chk).max())
+    ref_len = max(len(lead_chk), 1)
+    drift = abs(len(lead_chk) - len(inst_chk)) / ref_len
 
-    lufs_ok = (abs(lufs_i_f - TARGET_LUFS_INST) <= LUFS_TOL and
-               abs(lufs_l_f - TARGET_LUFS_LEAD) <= LUFS_TOL)
-    peak_ok = final_peak <= PEAK_CEIL
+    ok_lufs = (abs(lead_lufs - TARGET_LUFS_LEAD) <= LUFS_TOL) and (
+        abs(inst_lufs - TARGET_LUFS_INST) <= LUFS_TOL
+    )
+    ok_peak = (lead_peak <= PEAK_CEIL) and (inst_peak <= PEAK_CEIL)
+    ok_drift = drift <= 0.005
+    passed = bool(ok_lufs and ok_peak and ok_drift)
 
     report = {
-        'slug': slug,
-        'targets': {'instrumental': TARGET_LUFS_INST, 'lead': TARGET_LUFS_LEAD},
-        'peak_ceil_db': -3.0,
-        'lufs_before': {'instrumental': lufs_i, 'lead': lufs_l},
-        'gains': {'instrumental': float(g_i), 'lead': float(g_l)},
-        'peak_before': peak_before,
-        'peak_limited': bool(limited),
-        'final_lufs': {'instrumental': lufs_i_f, 'lead': lufs_l_f},
-        'final_peak': final_peak,
-        'sr': OUT_SR,
-        'length': {'instrumental': int(ref_len), 'lead': int(lead_len)},
-        'length_drift_ratio': float(drift),
-        'pass': (drift <= 0.005 and lufs_ok and peak_ok)
+        "lufs": {
+            "lead": lead_lufs,
+            "inst": inst_lufs,
+            "target_lead": TARGET_LUFS_LEAD,
+            "target_inst": TARGET_LUFS_INST,
+            "tol": LUFS_TOL,
+        },
+        "peak": {"lead": lead_peak, "inst": inst_peak, "ceiling": PEAK_CEIL},
+        "drift": drift,
+        "pass": passed,
     }
-    with open(f"{outd}/quality_report.json", 'w') as f:
-        json.dump(report, f, indent=2)
-    if not report['pass']:
-        if drift > 0.005:
-            print(f'[ERR] Length drift too large: {report["length_drift_ratio"]}', file=sys.stderr)
-        if not lufs_ok:
-            print(f'[ERR] LUFS out of tolerance: inst {lufs_i_f:.2f}, lead {lufs_l_f:.2f}', file=sys.stderr)
-        if not peak_ok:
-            print(f'[ERR] Peak above ceiling: {final_peak:.4f} > {PEAK_CEIL:.4f}', file=sys.stderr)
+    with open(f"{outd}/quality_report.json", "w") as f:
+        json.dump(report, f, ensure_ascii=False, indent=2)
+    if not passed:
+        print(
+            "[ERR] quality contract violated:",
+            json.dumps(report, ensure_ascii=False),
+            file=sys.stderr,
+        )
         return 3
 
     providers = os.getenv('SS_ORT_PROVIDERS')
@@ -181,5 +185,6 @@ def main(argv=None):
     return 0
 
 
-if __name__ == '__main__':
-    raise SystemExit(main())
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
