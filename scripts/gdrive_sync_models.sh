@@ -40,15 +40,24 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
-REMOTE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models"
+REMOTE_MODELS="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models"
+REMOTE_ASSETS="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/assets"
+if ! rclone lsd "$REMOTE_ASSETS" >/dev/null 2>&1; then
+  echo "[WARN] remote assets/ missing; fallback to models/" >&2
+  REMOTE_ASSETS="$REMOTE_MODELS"
+fi
+
 LOCAL="$SS_MODELS_DIR"
 mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
 RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
 if ! $CHECK_ONLY; then
-  rclone mkdir "$REMOTE" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
-  rclone copy "$REMOTE" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+  rclone mkdir "$REMOTE_MODELS" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
+  rclone copy "$REMOTE_MODELS" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+  if [[ "$REMOTE_ASSETS" != "$REMOTE_MODELS" ]]; then
+    rclone copy "$REMOTE_ASSETS" "$SS_ASSETS_DIR" --checksum "${RCLONE_OPTS[@]}"
+  fi
 
-  # relocate expected files
+  # relocate expected files from models/ if assets lived there
   move_if_found(){
     local name="$1" dest="$2"
     local found
