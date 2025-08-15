@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+usage(){ cat <<USAGE
+Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
+Example: bash scripts/40_rvc_convert.sh myslug /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+Env   : SS_WORK, SS_OUT, SS_ASSETS_DIR, SS_UVR_VENV, SS_RVC_VENV
+USAGE
+}
+[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
+
 SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
   echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
@@ -20,12 +28,6 @@ elif [ -x "$SS_RVC_VENV/bin/python" ]; then
 else
   echo "[ERR] rvc not found; run scripts/00_setup_env_split.sh"; exit 2;
 fi
-
-usage(){ cat <<USAGE
-Usage: scripts/40_rvc_convert.sh <slug> <rvc_pth> <rvc.index> [v1|v2]
-USAGE
-}
-[[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
 
 SLUG="$1"; RVC_PTH="$2"; RVC_INDEX="$3"; RVC_VER="${4:-v2}"

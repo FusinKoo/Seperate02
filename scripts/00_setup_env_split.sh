@@ -6,18 +6,30 @@ usage() {
 Usage: $(basename "$0") [options]
 Options:
   -h, --help   Show this help and exit
+      --locked Install from requirements-locked.txt
 Examples:
   make setup-split
-  bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
-
-Ensure /vol is mounted before running. In Runpod UI:
-  Stop Pod -> Attach Network Volume -> Mount path=/vol -> Start
+  make setup-lock
 USG
 }
+
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"
 : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 : "${SS_CACHE_DIR:=/vol/.cache}"
+
+LOCKED=false
+for arg in "$@"; do
+  case "$arg" in
+    -h|--help) usage; exit 0;;
+    --locked) LOCKED=true;;
+  esac
+done
+
+REQ_FILE="requirements-locked.txt"
+if $LOCKED && [[ ! -f "$REQ_FILE" ]]; then
+  echo "[ERR] missing $REQ_FILE" >&2
+  exit 2
+fi
 
 ensure_vol_mount() {
   if ! mount | grep -Eq '[[:space:]]/vol[[:space:]]'; then
@@ -27,7 +39,6 @@ ensure_vol_mount() {
   fi
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
 ensure_vol_mount
 
 if ! command -v ffmpeg >/dev/null 2>&1; then
@@ -52,17 +63,25 @@ export PIP_CACHE_DIR="$SS_CACHE_DIR/pip"
 export TMPDIR=/vol/tmp
 mkdir -p "$HF_HOME" "$TORCH_HOME" "$PIP_CACHE_DIR" "$TMPDIR"
 
-python3 -m venv "$SS_UVR_VENV"
-"$SS_UVR_VENV/bin/pip" install -U pip wheel setuptools
-"$SS_UVR_VENV/bin/pip" install --no-cache-dir -r requirements-uvr.txt
+if $LOCKED; then
+  python3 -m venv "$SS_UVR_VENV"
+  "$SS_UVR_VENV/bin/pip" install --no-cache-dir -r "$REQ_FILE"
 
-python3 -m venv "$SS_RVC_VENV"
-"$SS_RVC_VENV/bin/python" -m pip install -U "pip<24.1" "setuptools<70" wheel
-"$SS_RVC_VENV/bin/pip" install --no-cache-dir "numpy==1.23.5"
-"$SS_RVC_VENV/bin/pip" install --no-cache-dir \
-  --index-url https://download.pytorch.org/whl/cu124 \
-  torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
-"$SS_RVC_VENV/bin/pip" install --no-cache-dir -r requirements-rvc.txt
+  python3 -m venv "$SS_RVC_VENV"
+  "$SS_RVC_VENV/bin/pip" install --no-cache-dir -r "$REQ_FILE"
+else
+  python3 -m venv "$SS_UVR_VENV"
+  "$SS_UVR_VENV/bin/pip" install -U pip wheel setuptools
+  "$SS_UVR_VENV/bin/pip" install --no-cache-dir -r requirements-uvr.txt
+
+  python3 -m venv "$SS_RVC_VENV"
+  "$SS_RVC_VENV/bin/python" -m pip install -U "pip<24.1" "setuptools<70" wheel
+  "$SS_RVC_VENV/bin/pip" install --no-cache-dir "numpy==1.23.5"
+  "$SS_RVC_VENV/bin/pip" install --no-cache-dir \\
+    --index-url https://download.pytorch.org/whl/cu124 \\
+    torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
+  "$SS_RVC_VENV/bin/pip" install --no-cache-dir -r requirements-rvc.txt
+fi
 
 "$SS_UVR_VENV/bin/pip" cache purge || true
 "$SS_RVC_VENV/bin/pip" cache purge || true

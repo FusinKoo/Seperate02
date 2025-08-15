@@ -56,7 +56,10 @@ def peak_limit_pair(a, b, np):
 
 
 def main(argv=None):
-    ap = argparse.ArgumentParser(description='Finalize outputs, normalize and report metrics.')
+    ap = argparse.ArgumentParser(
+        description='Finalize outputs, normalize and report metrics.',
+        epilog='Env: SS_WORK, SS_OUT, SS_MODELS_DIR'
+    )
     ap.add_argument('--slug', required=True)
     args = ap.parse_args(argv)
 
@@ -96,9 +99,13 @@ def main(argv=None):
     lead_s = lead * g_l
 
     inst_f, lead_f, limited, peak_before = peak_limit_pair(inst_s, lead_s, np)
-
     sf.write(inst_out, inst_f, OUT_SR, subtype='PCM_24')
     sf.write(lead_out, lead_f, OUT_SR, subtype='PCM_24')
+
+    final_inst_lufs = measure_lufs(inst_f, OUT_SR, pyln)
+    final_lead_lufs = measure_lufs(lead_f, OUT_SR, pyln)
+    final_inst_peak = 20 * np.log10(max(np.max(np.abs(inst_f)), 1e-12))
+    final_lead_peak = 20 * np.log10(max(np.max(np.abs(lead_f)), 1e-12))
 
     ref_len = len(inst_f)
     lead_len = len(lead_f)
@@ -112,15 +119,30 @@ def main(argv=None):
         'gains': {'instrumental': float(g_i), 'lead': float(g_l)},
         'peak_before': peak_before,
         'peak_limited': bool(limited),
+        'final_inst': {'lufs': final_inst_lufs, 'peak_dbfs': final_inst_peak},
+        'final_vocal': {'lufs': final_lead_lufs, 'peak_dbfs': final_lead_peak},
         'sr': OUT_SR,
         'length': {'instrumental': int(ref_len), 'lead': int(lead_len)},
-        'length_drift_ratio': float(drift),
-        'pass': (drift <= 0.005)
+        'length_drift_ratio': float(drift)
     }
+
+    ok = True
+    if abs(final_inst_lufs - TARGET_LUFS_INST) > 0.2:
+        print(f'[ERR] instrumental LUFS {final_inst_lufs:.2f} out of tolerance', file=sys.stderr)
+        ok = False
+    if abs(final_lead_lufs - TARGET_LUFS_LEAD) > 0.2:
+        print(f'[ERR] vocal LUFS {final_lead_lufs:.2f} out of tolerance', file=sys.stderr)
+        ok = False
+    if final_inst_peak > -3.0 or final_lead_peak > -3.0:
+        print(f'[ERR] peak above -3 dBFS (inst={final_inst_peak:.2f}, vocal={final_lead_peak:.2f})', file=sys.stderr)
+        ok = False
+    report['pass'] = bool(ok and drift <= 0.005)
+
     with open(f"{outd}/quality_report.json", 'w') as f:
         json.dump(report, f, indent=2)
     if not report['pass']:
-        print(f'[ERR] Length drift too large: {report["length_drift_ratio"]}', file=sys.stderr)
+        if drift > 0.005:
+            print(f'[ERR] Length drift too large: {report["length_drift_ratio"]}', file=sys.stderr)
         return 1
 
     providers = os.getenv('SS_ORT_PROVIDERS')
