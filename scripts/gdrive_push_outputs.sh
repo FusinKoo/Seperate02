@@ -52,6 +52,7 @@ fi
 
 REMOTE_BASE="$SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT"
 # ensure remote folders exist (avoid 404)
+rclone mkdir "$REMOTE_BASE" || true
 rclone mkdir "$REMOTE_BASE/out" || true
 rclone mkdir "$REMOTE_BASE/processed" || true
 rclone mkdir "$REMOTE_BASE/failed" || true

@@ -28,4 +28,4 @@ jobs:
         continue-on-error: true
         run: |
           pipx install "snakemake>=9,<10" || pip install "snakemake>=9,<10"
-          snakemake -s Snakefile --cores 1 -n || echo "snakemake dry-run skipped"
+          snakemake -s Snakefile --cores 1 -n --config slug=__ci__ || echo "snakemake dry-run skipped"
