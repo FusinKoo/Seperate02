@@ -13,10 +13,10 @@ SS_OUT   = config.get("SS_OUT",   os.getenv("SS_OUT",   "/vol/out"))
 RVC_PTH  = config.get("rvc_pth",  os.getenv("SS_RVC_PTH",  "/vol/models/RVC/G_8200.pth"))
 RVC_IDX  = config.get("rvc_index",os.getenv("SS_RVC_INDEX","/vol/models/RVC/G_8200.index"))
 RVC_VER  = config.get("rvc_ver",  os.getenv("SS_RVC_VER",  "v2"))
-SLUG     = config.get("slug", None)
+SLUG     = config.get("slug", None) or os.environ.get("SLUG")
 
 if SLUG is None:
-    raise ValueError("Missing required config: slug")
+    raise ValueError("Missing required slug. Pass `--config slug=<slug>` or set env `SLUG=<slug>`.")
 
 
 rule all:

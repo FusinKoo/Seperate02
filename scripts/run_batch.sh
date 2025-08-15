@@ -10,7 +10,12 @@ Env  : SS_WORK, SS_PARALLEL_JOBS
 USAGE
 }
 
-case "${1:-}" in -h|--help) usage; exit 0;; esac
+case "${1:-}" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+esac
 
 : "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"

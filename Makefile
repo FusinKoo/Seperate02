@@ -26,14 +26,15 @@ help:
 > @echo "  index-first - build RVC index (make index-first wav=<in.wav> out=<out.index>)"
 
 setup-lock:
-> @H=$$(grep -c -- '--hash=sha256:' requirements-locked.txt || true); \
-> if [ "$$H" -gt 0 ]; then \
->   echo "[INFO] using --require-hashes"; \
->   python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install --require-hashes -r requirements-locked.txt; \
-> else \
->   echo "[WARN] no hashes in requirements-locked.txt; installing without --require-hashes"; \
->   python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install -r requirements-locked.txt; \
-> fi
+> @if ! mountpoint -q /vol; then echo "[ERR] /vol not mounted. Attach Network Volume at /vol, then rerun 'make setup-lock'." >&2; exit 2; fi; \
+> H=$$(grep -c -- '--hash=sha256:' requirements-locked.txt || true); \
+  if [ "$$H" -gt 0 ]; then \
+    echo "[INFO] using --require-hashes"; \
+    python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install --require-hashes -r requirements-locked.txt; \
+  else \
+    echo "[WARN] no hashes in requirements-locked.txt; installing without --require-hashes"; \
+    python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install -r requirements-locked.txt; \
+  fi
 
 setup:
 > bash scripts/00_setup_env_split.sh
@@ -100,10 +101,18 @@ index-first:
 
 # --- Snakemake integration ---
 snk-dry:
-> snakemake -s Snakefile --cores 1 -n
+> snakemake -s Snakefile --cores 1 -n --config slug=__dry__
 
 snk-run:
 > snakemake -s Snakefile --profile profiles/runpod
 
 snk-run-slug:
 > snakemake -s Snakefile --profile profiles/runpod --config slug=$(slug)
+
+.PHONY: lock-refresh
+lock-refresh:
+> pipx install pip-tools || pip install pip-tools
+> pip-compile --resolver=backtracking --generate-hashes \
+    -o requirements-locked.txt \
+    requirements-uvr.txt requirements-rvc.txt
+> echo "[OK] requirements-locked.txt refreshed with hashes."
