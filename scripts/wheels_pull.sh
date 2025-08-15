@@ -13,7 +13,7 @@ REMOTE="${SS_WHEELS_REMOTE:?missing SS_WHEELS_REMOTE}/${PROFILE}"
 mkdir -p "$BASE"
 
 set +e
-rclone lsd "$REMOTE" >/dev/null 2>/dev/null
+rclone lsd "$REMOTE" >/dev/null 2>&1
 has_remote=$?
 set -e
 if [[ $has_remote -ne 0 ]]; then
