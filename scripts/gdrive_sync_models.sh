@@ -50,6 +50,22 @@ fi
 LOCAL="$SS_MODELS_DIR"
 mkdir -p "$LOCAL" "$SS_ASSETS_DIR" "$LOCAL/UVR" "$LOCAL/RVC"
 RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
+
+# --- STRICT: Ensure dereverb model present ---
+REQ_DEREV_MODEL="${SS_UVR_DEREVERB_MODEL:-Reverb_HQ_By_FoxJoy.onnx}"
+LOCAL_DEREV="${SS_MODELS_DIR}/UVR/${REQ_DEREV_MODEL}"
+REMOTE_DEREV="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models/UVR/${REQ_DEREV_MODEL}"
+
+# try to fetch the exact file; ignore error here, hard check below
+rclone copyto "$REMOTE_DEREV" "$LOCAL_DEREV" --checksum "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
+
+if [[ ! -f "$LOCAL_DEREV" ]]; then
+  echo "[ERR] Missing dereverb model locally: $LOCAL_DEREV" >&2
+  echo "[ERR] Please upload the file to: ${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models/UVR/${REQ_DEREV_MODEL}" >&2
+  echo "[ERR] Then re-run: bash scripts/gdrive_sync_models.sh" >&2
+  exit 90
+fi
+echo "[OK] found dereverb model: $LOCAL_DEREV"
 if ! $CHECK_ONLY; then
   rclone mkdir "$REMOTE_MODELS" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
   rclone copy "$REMOTE_MODELS" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
