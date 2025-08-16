@@ -56,7 +56,7 @@ env:
 > @echo SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 
 one:
-> bash scripts/run_one.sh $(song)
+> snakemake -s Snakefile --cores 1 --config slug=$(song)
 
 pull:
 > bash scripts/gdrive_pull_inputs.sh

@@ -95,6 +95,12 @@ Seperate02/
 ## 快速开始（Quick Start）
 
 必须先挂载 /vol（Network Volume）
+
+### 最短命令示例
+
+- **Mac**：安装 micromamba → `make sanity` → `make one song=<slug>`
+- **Runpod**：挂载 `/vol` → `make setup-lock` → `make batch`
+- **GDrive**：准备 `Seperate02/models|songs|out|logs` 目录结构
 ![mount /vol screenshot placeholder](docs/mount_vol_placeholder.png)
 
 ### Runpod 配置建议

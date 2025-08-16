@@ -1,0 +1,7 @@
+{
+  "sample_rate": 48000,
+  "bit_depth": 24,
+  "lufs": -14,
+  "peak_dbfs_max": -3,
+  "drift_pct_max": 0.5
+}
