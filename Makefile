@@ -1,12 +1,11 @@
 .RECIPEPREFIX := >
 .PHONY: help setup-lock setup-split setup sanity dag demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean hooks lock-refresh uv-setup uv-install
 
-SNAKE := micromamba run -n runner snakemake -s Snakefile
-
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
 help:
 > @$(CHECK_VOL)
+> @echo "Quick start: bash scripts/bootstrap.sh"
 > @echo "Targets:"
 > @echo "  setup-lock  - install deps via lock file"
 > @echo "  setup-split - install dual venvs"
@@ -46,11 +45,11 @@ setup:
 >   bash scripts/00_setup_env_split.sh; \
 > fi
 sanity:
-> @$(SNAKE) -n --cores 1 --printshellcmds
+> @./scripts/snk -s Snakefile -n --cores 1 --printshellcmds
 
 dag:
 > @mkdir -p audit
-> @$(SNAKE) -n --dag > audit/snakedag.dot
+> @./scripts/snk -s Snakefile -n --dag > audit/snakedag.dot
 > @command -v dot >/dev/null && dot -Tpng audit/snakedag.dot -o audit/snakedag.png || true
 
 demo:
@@ -64,7 +63,7 @@ env:
 > @echo SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 
 one:
-> @$(SNAKE) --cores 1 --resources gpus=1 -k --config slug=$(song)
+> @./scripts/snk -s Snakefile --cores 1 --resources gpus=1 -k --config slug=$(song)
 
 pull:
 > bash scripts/gdrive_pull_inputs.sh
@@ -112,13 +111,13 @@ index-first:
 
 # --- Snakemake integration ---
 snk-dry:
-> $(SNAKE) --cores 1 -n --config slug=__dry__
+> ./scripts/snk -s Snakefile -n --cores 1 --printshellcmds
 
 snk-run:
-> $(SNAKE) --profile profiles/runpod
+> ./scripts/snk -s Snakefile --cores 1 --printshellcmds
 
 snk-run-slug:
-> $(SNAKE) --profile profiles/runpod --config slug=$(slug)
+> ./scripts/snk -s Snakefile --cores 1 --config slug="$(slug)"
 
 .PHONY: lock-refresh
 lock-refresh:

@@ -3,5 +3,8 @@ channels:
   - conda-forge
 dependencies:
   - python=3.11
-  - snakemake>=7.32
-  - graphviz
+  - snakemake-minimal=8.21
+  - micromamba
+  - pip
+  - coreutils
+  - jq

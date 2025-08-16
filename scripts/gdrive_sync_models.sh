@@ -2,6 +2,12 @@
 set -euo pipefail
 export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 
+: "${SS_GDRIVE_REMOTE:=gdrive}"
+if ! rclone listremotes 2>/dev/null | grep -q "^${SS_GDRIVE_REMOTE}:"; then
+  echo "[ERR] rclone remote '${SS_GDRIVE_REMOTE}:' not found. Set SS_GDRIVE_REMOTE or configure rclone (RCLONE_CONFIG=$RCLONE_CONFIG)." >&2
+  exit 2
+fi
+
 usage() {
   cat <<USG
 Usage: $(basename "$0") [options]

@@ -4,6 +4,12 @@ set -euo pipefail
 export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
 export LC_ALL=C.UTF-8
 
+: "${SS_GDRIVE_REMOTE:=gdrive}"
+if ! rclone listremotes 2>/dev/null | grep -q "^${SS_GDRIVE_REMOTE}:"; then
+  echo "[ERR] rclone remote '${SS_GDRIVE_REMOTE}:' not found. Set SS_GDRIVE_REMOTE or configure rclone (RCLONE_CONFIG=$RCLONE_CONFIG)." >&2
+  exit 2
+fi
+
 usage(){
   cat <<'USAGE'
 Usage: scripts/gdrive_push_outputs.sh [--dry-run] <slug>
