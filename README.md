@@ -170,6 +170,8 @@ print("NumPy:", np.__version__)
 print("Torch:", torch.__version__, "CUDA:", torch.cuda.is_available())
 PY
 (/vol/venvs/rvc/bin/rvc --help | head -n 3) || (/vol/venvs/rvc/bin/python -m rvc --help | head -n 3) || echo "[MISS] rvc"
+# 正则检查
+rg -n -e '-ac(=| )2| -ar(=| )48000|pcm_s16le' scripts/20_extract_main.sh
 ```
 
 ### 挂载与路径
