@@ -26,7 +26,22 @@ rule step10:
     shell: r"""
       set -Eeuo pipefail
       mkdir -p "$(dirname {log})"
-      bash scripts/10_separate_inst.sh "/vol/inbox/{SLUG}.wav" "{SLUG}" &> {log}
+
+      # 1) 优先用 .src 的 local_inbox_path；2) 回退到 /vol/inbox/{SLUG}.wav
+      SRC_FILE="/vol/work/{SLUG}/.src"
+      IN_PATH=""
+      if [[ -f "$SRC_FILE" ]]; then
+        IN_PATH="$(awk -F= '$1=="local_inbox_path"{print $2}' "$SRC_FILE" || true)"
+      fi
+      if [[ -z "${IN_PATH:-}" ]]; then
+        IN_PATH="/vol/inbox/{SLUG}.wav"
+      fi
+      if [[ ! -f "$IN_PATH" ]]; then
+        echo "[ERR] input not found: $IN_PATH (slug={SLUG})" >&2
+        exit 2
+      fi
+
+      bash scripts/10_separate_inst.sh "$IN_PATH" "{SLUG}" &> {log}
       test -f "{output.inst}" -a -f "{output.voc}"
     """
 
