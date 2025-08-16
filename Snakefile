@@ -1,4 +1,4 @@
-"""Snakemake wrapper for end-to-end processing."""
+"""Snakemake pipeline for vocal separation and conversion."""
 import os
 
 configfile: "config/config.yaml" if os.path.exists("config/config.yaml") else None
@@ -17,17 +17,16 @@ rule all:
     input:
         f"{SS_OUT}/{SLUG}/quality_report.json"
 
-rule step10:
+rule A:
+    conda: "envs/a.yml"
     output:
         inst=f"{SS_WORK}/{SLUG}/01_accompaniment.wav",
         voc =f"{SS_WORK}/{SLUG}/01_vocals_mix.wav"
-    log: f"logs/{SLUG}/10.log"
-    resources: mem_mb=4096, gpu=1
+    log: f"logs/A/{SLUG}.log"
     shell: r"""
       set -Eeuo pipefail
       mkdir -p "$(dirname {log})"
 
-      # 1) 优先用 .src 的 local_inbox_path；2) 回退到 /vol/inbox/{SLUG}.wav
       SRC_FILE="/vol/work/{SLUG}/.src"
       IN_PATH=""
       if [[ -f "$SRC_FILE" ]]; then
@@ -41,57 +40,60 @@ rule step10:
         exit 2
       fi
 
-      bash scripts/10_separate_inst.sh "$IN_PATH" "{SLUG}" &> {log}
+      bash scripts/10_A_run.sh "$IN_PATH" "{SLUG}" &> {log}
       test -f "{output.inst}" -a -f "{output.voc}"
     """
 
-rule step20:
+rule B:
+    conda: "envs/b.yml"
     input: f"{SS_WORK}/{SLUG}/01_vocals_mix.wav"
     output: f"{SS_WORK}/{SLUG}/02_main_vocal.wav"
-    log: f"logs/{SLUG}/20.log"
-    resources: mem_mb=4096, gpu=1
-    shell: r"""
-      set -Eeuo pipefail
-      bash scripts/20_extract_main.sh "{SLUG}" &> {log}
-      test -f "{output}"
-    """
-
-rule step30:
-    input: f"{SS_WORK}/{SLUG}/02_main_vocal.wav"
-    output: f"{SS_WORK}/{SLUG}/03_main_vocal_clean.wav"
-    log: f"logs/{SLUG}/30.log"
-    resources: mem_mb=4096, gpu=0
-    shell: r"""
-      set -Eeuo pipefail
-      bash scripts/30_dereverb_denoise.sh "{SLUG}" &> {log}
-      test -f "{output}"
-    """
-
-rule step40:
-    input:
-        main=f"{SS_WORK}/{SLUG}/03_main_vocal_clean.wav"
-    output:
-        f"{SS_WORK}/{SLUG}/04_converted.wav"
-    params:
-        pth=RVC_PTH, idx=RVC_IDX, ver=RVC_VER
-    log: f"logs/{SLUG}/40.log"
-    resources: mem_mb=4096, gpu=1
-    shell: r"""
-      set -Eeuo pipefail
-      bash scripts/40_rvc_convert.sh "{SLUG}" "{params.pth}" "{params.idx}" "{params.ver}" &> {log}
-      test -f "{output}"
-    """
-
-rule step50:
-    input:
-        f"{SS_WORK}/{SLUG}/04_converted.wav"
-    output:
-        f"{SS_OUT}/{SLUG}/quality_report.json"
-    log: f"logs/{SLUG}/50.log"
-    resources: mem_mb=2048, gpu=0
+    log: f"logs/B/{SLUG}.log"
     shell: r"""
       set -Eeuo pipefail
       mkdir -p "$(dirname {log})"
-      {os.getenv("SS_UVR_VENV","/vol/venvs/uvr")}/bin/python scripts/50_finalize_and_report.py --slug "{SLUG}" &> {log}
+      bash scripts/20_B_run.sh "{SLUG}" &> {log}
+      test -f "{output}"
+    """
+
+rule C:
+    conda: "envs/c.yml"
+    input: f"{SS_WORK}/{SLUG}/02_main_vocal.wav"
+    output: f"{SS_WORK}/{SLUG}/03_main_vocal_clean.wav"
+    log: f"logs/C/{SLUG}.log"
+    shell: r"""
+      set -Eeuo pipefail
+      mkdir -p "$(dirname {log})"
+      bash scripts/30_C_run.sh "{SLUG}" &> {log}
+      test -f "{output}"
+    """
+
+rule D:
+    conda: "envs/d.yml"
+    input:
+        main=f"{SS_WORK}/{SLUG}/03_main_vocal_clean.wav"
+    output:
+        f"{SS_WORK}/{SLUG}/04_vocal_converted.wav"
+    params:
+        pth=RVC_PTH, idx=RVC_IDX, ver=RVC_VER
+    log: f"logs/D/{SLUG}.log"
+    shell: r"""
+      set -Eeuo pipefail
+      mkdir -p "$(dirname {log})"
+      bash scripts/40_D_rvc.sh "{SLUG}" "{params.pth}" "{params.idx}" "{params.ver}" &> {log}
+      test -f "{output}"
+    """
+
+rule E:
+    conda: "envs/e.yml"
+    input:
+        f"{SS_WORK}/{SLUG}/04_vocal_converted.wav"
+    output:
+        f"{SS_OUT}/{SLUG}/quality_report.json"
+    log: f"logs/E/{SLUG}.log"
+    shell: r"""
+      set -Eeuo pipefail
+      mkdir -p "$(dirname {log})"
+      python scripts/50_E_finalize_and_report.py --slug "{SLUG}" &> {log}
       test -f "{output}"
     """

@@ -57,7 +57,7 @@ printf '%s\n' "${SLUGS[@]}" | xargs -I{} -P "$SS_PARALLEL_JOBS" bash -lc '
   log="$SS_WORK/$slug/run.log"
   echo "[BEGIN] $slug $(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$log"
   if [[ -f "$SS_WORK/$slug/.done" ]]; then echo "[SKIP] done" | tee -a "$log"; exit 0; fi
-  bash scripts/run_one.sh "$slug" "$RVC_PTH" "$RVC_INDEX" "$RVC_VER" >>"$log" 2>&1 && touch "$SS_WORK/$slug/.done"
+  snakemake -s Snakefile --cores 1 --config slug="$slug" rvc_pth="$RVC_PTH" rvc_index="$RVC_INDEX" rvc_ver="$RVC_VER" >>"$log" 2>&1 && touch "$SS_WORK/$slug/.done"
   if [[ -x scripts/gdrive_push_outputs.sh ]]; then bash scripts/gdrive_push_outputs.sh "$slug" >>"$log" 2>&1 || true; fi
   echo "[END] $slug $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$log"
 ' _ {}
