@@ -39,9 +39,16 @@ if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
 fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
+if [ -z "${SS_GDRIVE_ROOT+x}" ]; then
+  SS_GDRIVE_ROOT="Seperate02"
+fi
+_root="$SS_GDRIVE_ROOT"
+[ "$_root" = "." ] && _root=""
+REMOTE_PREFIX="${SS_GDRIVE_REMOTE}:${_root:+${_root}/}"
+echo "[DBG] REMOTE_PREFIX=${REMOTE_PREFIX}" >&2
 
-REMOTE_MODELS="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models"
-REMOTE_ASSETS="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/assets"
+REMOTE_MODELS="${REMOTE_PREFIX}models"
+REMOTE_ASSETS="${REMOTE_PREFIX}assets"
 if ! rclone lsd "$REMOTE_ASSETS" >/dev/null 2>&1; then
   echo "[WARN] remote assets/ missing; fallback to models/" >&2
   REMOTE_ASSETS="$REMOTE_MODELS"
@@ -54,14 +61,14 @@ RCLONE_OPTS=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:
 # --- STRICT: Ensure dereverb model present ---
 REQ_DEREV_MODEL="${SS_UVR_DEREVERB_MODEL:-Reverb_HQ_By_FoxJoy.onnx}"
 LOCAL_DEREV="${SS_MODELS_DIR}/UVR/${REQ_DEREV_MODEL}"
-REMOTE_DEREV="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models/UVR/${REQ_DEREV_MODEL}"
+REMOTE_DEREV="${REMOTE_PREFIX}models/UVR/${REQ_DEREV_MODEL}"
 
 # try to fetch the exact file; ignore error here, hard check below
 rclone copyto "$REMOTE_DEREV" "$LOCAL_DEREV" --checksum "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
 
 if [[ ! -f "$LOCAL_DEREV" ]]; then
   echo "[ERR] Missing dereverb model locally: $LOCAL_DEREV" >&2
-  echo "[ERR] Please upload the file to: ${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/models/UVR/${REQ_DEREV_MODEL}" >&2
+  echo "[ERR] Please upload the file to: ${REMOTE_PREFIX}models/UVR/${REQ_DEREV_MODEL}" >&2
   echo "[ERR] Then re-run: bash scripts/gdrive_sync_models.sh" >&2
   exit 90
 fi
@@ -78,10 +85,12 @@ if ! $CHECK_ONLY; then
     local name="$1" dest="$2"
     local found
     found=$(find "$LOCAL" -type f -name "$name" | head -n1 || true)
-    if [ -n "$found" ]; then
-      mkdir -p "$(dirname "$dest")"
-      mv -f "$found" "$dest"
+    [ -n "$found" ] || return 0
+    if [ "$(readlink -f "$found")" = "$(readlink -f "$dest")" ]; then
+      return 0
     fi
+    mkdir -p "$(dirname "$dest")"
+    mv -f "$found" "$dest"
   }
 
   move_if_found "UVR-MDX-NET-Inst_HQ_3.onnx" "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx"
@@ -104,7 +113,7 @@ missing=()
 
 if [ ${#missing[@]} -ne 0 ]; then
   echo "[ERR] Missing models: ${missing[*]}" >&2
-  echo "[ERR] Please upload missing files to $SS_GDRIVE_REMOTE:$SS_GDRIVE_ROOT/models/" >&2
+  echo "[ERR] Please upload missing files to ${REMOTE_PREFIX}models/" >&2
   exit 1
 fi
 

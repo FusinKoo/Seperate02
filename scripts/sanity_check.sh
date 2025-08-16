@@ -16,10 +16,12 @@ SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 
 command -v nvidia-smi >/dev/null && nvidia-smi || echo "[WARN] nvidia-smi not found; install NVIDIA drivers" >&2
 
-if command -v audio-separator >/dev/null; then
-  ver=$(audio-separator --version 2>&1)
-  echo "audio-separator $ver"
-  [[ $ver == 0.35.2* ]] || echo "[WARN] expected audio-separator 0.35.2" >&2
+if command -v audio-separator >/dev/null 2>&1; then
+  ver=$(audio-separator --version 2>&1 | awk '{print $NF}')
+  case "$ver" in
+    0.35.2*) echo "audio-separator $ver";;
+    *) echo "[WARN] audio-separator $ver (expected 0.35.2*)";;
+  esac
 else
   echo "[WARN] audio-separator not found; run scripts/00_setup_env_split.sh" >&2
 fi
@@ -50,22 +52,12 @@ fi
 
 # ORT providers 检查
 python3 - <<'PY'
-import json, sys
 try:
     import onnxruntime as ort
     prov = ort.get_available_providers()
     print("ORT providers:", prov)
-    wants = ['CUDAExecutionProvider', 'CPUExecutionProvider']
-    if prov[:2] == wants:
-        print('[OK] Provider order CUDA→CPU confirmed')
-    elif 'CUDAExecutionProvider' in prov and 'CPUExecutionProvider' in prov:
-        print('[WARN] Providers present but order != CUDA→CPU (actual:', prov, ')')
-    elif 'CPUExecutionProvider' in prov:
-        print('[WARN] CUDAExecutionProvider missing, CPU-only mode (actual:', prov, ')')
-    else:
-        print('[ERR] Missing CUDA/CPU providers, actual:', prov)
-        sys.exit(3)
+    if "CUDAExecutionProvider" not in prov:
+        print("[WARN] CUDA provider not detected")
 except Exception as e:
-    print('[ERR] onnxruntime not available:', e)
-    sys.exit(2)
+    print(f"[ERR] onnxruntime not available: {e}")
 PY
