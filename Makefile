@@ -111,7 +111,7 @@ index-first:
 
 # --- Snakemake integration ---
 snk-dry:
-> ./scripts/snk -s Snakefile -n --cores 1 --printshellcmds
+> ./scripts/snk -s Snakefile -n --cores 1 --printshellcmds --config slug="__ci_dryrun__" rvc_pth=IGNORE rvc_index=IGNORE rvc_ver=v2
 
 snk-run:
 > ./scripts/snk -s Snakefile --cores 1 --printshellcmds
