@@ -239,6 +239,7 @@ bash scripts/run_batch.sh /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.inde
 - **操作系统**：Linux / macOS（Apple Silicon 可用 CPU 跑通，建议 GPU 环境）
 - **Python**：3.10+（建议 3.10/3.11）
 - **GPU**（建议）：CUDA 12.x + ONNX Runtime GPU 版（`onnxruntime-gpu`）
+- **编排环境**：使用独立 micromamba 环境 `runner`（`envs/runner.yml`），仅含 Snakemake/Graphviz，避免污染步骤环境；安装/更新：`micromamba env create -f envs/runner.yml` 或 `micromamba env update -n runner -f envs/runner.yml`
 - **离线安装**（可选）：使用 `wheelhouse/` 缓存 `pip wheel -r requirements-locked.txt` 生成的依赖包
 
 **注意**：本仓库不包含任何第三方模型权重；请在本地/私有存储中按约定路径放置。

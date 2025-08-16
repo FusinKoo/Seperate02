@@ -43,9 +43,9 @@ TMP_OUTDIR="$SS_WORK/$SLUG/30_dereverb.tmp"
 rm -rf "$TMP_OUTDIR"
 mkdir -p "$TMP_OUTDIR"
 
-cmd=( "$AS_BIN" -m "$MODEL_NAME" --model_file_dir "$MODEL_DIR" \
-      --output_dir "$TMP_OUTDIR" --output_format WAV \
-      --mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0 --amplification 0 )
+  cmd=( "$AS_BIN" -m "$MODEL_NAME" --model_file_dir "$MODEL_DIR" \
+        --output_dir "$TMP_OUTDIR" --output_format WAV \
+        --mdx_segment_size 8 --mdx_overlap 4 --fade_overlap hann --normalization 1.0 --amplification 0 )
 [[ "${SS_UVR_USE_SOUNDFILE:-0}" = "1" ]] && cmd+=( --use_soundfile )
 
 echo "[INF] UVR dereverb model: $MODEL_DIR/$MODEL_NAME"

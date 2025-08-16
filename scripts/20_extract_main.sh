@@ -22,7 +22,7 @@ tmp="$WORK_DIR/01_vocals_mix.norm.wav"
 ffmpeg -y -v error -i "$VOC" -ac 2 -ar 48000 -c:a pcm_s16le "$tmp"
 mv -f "$tmp" "$VOC"
 "$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV \
-  --mdx_segment_size 8 --mdx_overlap 4 --normalization 1.0 --amplification 0 "$VOC"
+  --mdx_segment_size 8 --mdx_overlap 4 --fade_overlap hann --normalization 1.0 --amplification 0 "$VOC"
 shopt -s nullglob
 main=( "$WORK_DIR"/*"(Vocals)"*Kim_Vocal_2*.wav )
 [[ ${#main[@]} -ge 1 ]] || { echo "[ERR] main vocal not found"; exit 3; }

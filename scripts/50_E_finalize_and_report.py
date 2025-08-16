@@ -1,12 +1,30 @@
 #!/usr/bin/env python
 import os, sys, json, argparse, hashlib, time
 
-# allow tuning targets via environment variables
-TARGET_LUFS_INST = float(os.getenv('SS_TARGET_LUFS_INST', '-20.0'))
-TARGET_LUFS_LEAD = float(os.getenv('SS_TARGET_LUFS_LEAD', '-18.5'))
-LUFS_TOL = 0.2
-PEAK_CEIL = 10 ** (-3.0/20)  # -3 dBFS
-OUT_SR = 48000
+from pathlib import Path
+
+CONTRACT_PATH = Path(__file__).resolve().parents[1] / 'config' / 'contracts' / 'audio.json'
+try:
+    with open(CONTRACT_PATH) as f:
+        _c = json.load(f)
+    TARGET_LUFS_INST = float(_c['lufs_inst'])
+    TARGET_LUFS_LEAD = float(_c['lufs_lead'])
+    LUFS_TOL = float(_c['lufs_tol'])
+    PEAK_CEIL = 10 ** (float(_c['peak_dbfs_max'])/20)
+    OUT_SR = int(_c['sample_rate'])
+    DRIFT_PCT_MAX = float(_c['drift_pct_max'])/100.0
+except Exception:
+    print('[ERR] missing contracts', file=sys.stderr)
+    sys.exit(3)
+
+_env_inst = os.getenv('SS_TARGET_LUFS_INST')
+if _env_inst is not None:
+    print('[WRN] contract overridden by env SS_TARGET_LUFS_INST', file=sys.stderr)
+    TARGET_LUFS_INST = float(_env_inst)
+_env_lead = os.getenv('SS_TARGET_LUFS_LEAD')
+if _env_lead is not None:
+    print('[WRN] contract overridden by env SS_TARGET_LUFS_LEAD', file=sys.stderr)
+    TARGET_LUFS_LEAD = float(_env_lead)
 
 SS_WORK = os.getenv('SS_WORK', '/vol/work')
 SS_OUT = os.getenv('SS_OUT', '/vol/out')
@@ -120,7 +138,7 @@ def main(argv=None):
         abs(inst_lufs - TARGET_LUFS_INST) <= LUFS_TOL
     )
     ok_peak = (lead_peak <= PEAK_CEIL) and (inst_peak <= PEAK_CEIL)
-    ok_drift = drift <= 0.005
+    ok_drift = drift <= DRIFT_PCT_MAX
     passed = bool(ok_lufs and ok_peak and ok_drift)
 
     report = {
@@ -132,7 +150,7 @@ def main(argv=None):
             "tol": LUFS_TOL,
         },
         "peak": {"lead": lead_peak, "inst": inst_peak, "ceiling": PEAK_CEIL},
-        "drift": drift,
+        "drift": {"value": drift, "max": DRIFT_PCT_MAX},
         "pass": passed,
     }
     with open(f"{outd}/quality_report.json", "w") as f:
@@ -150,6 +168,8 @@ def main(argv=None):
         providers = providers.split(',')
     else:
         providers = ort.get_available_providers()
+    with open(os.path.join(base, 'providers_snapshot.txt'), 'w') as f:
+        f.write(str(providers))
 
     models = {
         'uvr_sep': model_info(os.path.join(SS_MODELS_DIR, 'UVR', 'UVR-MDX-NET-Inst_HQ_3.onnx')),

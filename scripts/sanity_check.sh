@@ -51,13 +51,9 @@ else
 fi
 
 # ORT providers 检查
-python3 - <<'PY'
-try:
-    import onnxruntime as ort
-    prov = ort.get_available_providers()
-    print("ORT providers:", prov)
-    if "CUDAExecutionProvider" not in prov:
-        print("[WARN] CUDA provider not detected")
-except Exception as e:
-    print(f"[ERR] onnxruntime not available: {e}")
-PY
+echo "Expected ORT providers: CUDAExecutionProvider, CPUExecutionProvider"
+providers=$(python -c 'import onnxruntime as ort; print(ort.get_available_providers())' 2>&1 || true)
+echo "Actual ORT providers: $providers"
+[[ "$providers" == *CUDAExecutionProvider* ]] || echo "[WRN] CUDAExecutionProvider not available"
+mkdir -p "$SS_WORK"
+echo "$providers" > "$SS_WORK/providers_snapshot.txt"
