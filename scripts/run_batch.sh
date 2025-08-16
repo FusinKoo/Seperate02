@@ -17,7 +17,7 @@ case "${1:-}" in
     ;;
 esac
 
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
+: "${SS_UVR_VENV:=${SS_VENVS_DIR}/uvr}"; : "${SS_RVC_VENV:=${SS_VENVS_DIR}/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
 command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }
@@ -33,7 +33,6 @@ ensure_vol_mount() {
 ensure_vol_mount
 [[ -n "${1:-}" && -n "${2:-}" ]] || { usage; exit 2; }
 
-SS_WORK=${SS_WORK:-/vol/work}
 SS_PARALLEL_JOBS=${SS_PARALLEL_JOBS:-4}
 RVC_PTH="$1"; RVC_INDEX="$2"; RVC_VER="${3:-v2}"
 [[ -f "$RVC_PTH" ]] || { echo "[ERR] RVC .pth missing"; exit 1; }

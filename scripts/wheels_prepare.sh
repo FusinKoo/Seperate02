@@ -13,7 +13,7 @@ PY
 UNAME="$(uname -s | tr A-Z a-z)_$(uname -m)"
 PROFILE="${SS_WHEEL_PROFILE:-${PYTAG}-${SS_CUDA_TAG:-cu124}-${UNAME}}"
 
-BASE="${SS_WHEELHOUSE:-/vol/wheels}/${PROFILE}"
+BASE="${SS_WHEELHOUSE:-${SS_WHEELS_DIR}}/${PROFILE}"
 WH_UVR="${BASE}/uvr"
 WH_RVC="${BASE}/rvc"
 WH_LOCK="${BASE}/lock"
@@ -21,8 +21,8 @@ WH_LOCK="${BASE}/lock"
 mkdir -p "$WH_UVR" "$WH_RVC" "$WH_LOCK"
 
 # ---------- venv sanity (we just need pip, so allow system pip fallback) ----------
-UVR_PIP="${SS_UVR_VENV:-/vol/venvs/uvr}/bin/pip"
-RVC_PIP="${SS_RVC_VENV:-/vol/venvs/rvc}/bin/pip"
+UVR_PIP="${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}/bin/pip"
+RVC_PIP="${SS_RVC_VENV:-${SS_VENVS_DIR}/rvc}/bin/pip"
 command -v "$UVR_PIP" >/dev/null 2>&1 || UVR_PIP="pip"
 command -v "$RVC_PIP" >/dev/null 2>&1 || RVC_PIP="pip"
 

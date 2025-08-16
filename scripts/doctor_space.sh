@@ -9,7 +9,7 @@ Options:
 Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+  bash scripts/run_one.sh <slug> ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 USG
 }
 

@@ -11,7 +11,7 @@ Options:
 Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+  bash scripts/run_one.sh <slug> ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 USG
 }
 # ensure /vol mount only after help check
@@ -27,11 +27,8 @@ case "${1:-}" in -h|--help) usage; exit 0;; esac
 ensure_vol_mount
 
 # env defaults
-SS_INBOX=${SS_INBOX:-/vol/inbox}
-SS_WORK=${SS_WORK:-/vol/work}
-SS_OUT=${SS_OUT:-/vol/out}
 
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
+: "${SS_UVR_VENV:=${SS_VENVS_DIR}/uvr}"; : "${SS_RVC_VENV:=${SS_VENVS_DIR}/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
 # requires $SS_UVR_VENV/bin/audio-separator and $SS_RVC_VENV/bin/rvc
 command -v "$UVR_BIN/audio-separator" >/dev/null || { echo "[ERR] audio-separator not found; run scripts/00_setup_env_split.sh"; exit 2; }

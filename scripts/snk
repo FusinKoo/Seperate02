@@ -5,4 +5,4 @@ if ! command -v micromamba >/dev/null 2>&1; then
   echo "[ERR] micromamba not found. Run: make env && make setup" >&2
   exit 2
 fi
-exec micromamba run -n runner snakemake "$@"
+exec micromamba run -n runner python -m snakemake "$@"

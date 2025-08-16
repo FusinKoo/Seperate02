@@ -17,5 +17,5 @@ Run a specific slug:
 make snk-run-slug slug=<slug>
 ```
 
-Outputs are written under `/vol/out/<slug>` and the step log is stored at
+Outputs are written under `${SS_OUT}/<slug>` and the step log is stored at
 `logs/<slug>/end_to_end.log`.
