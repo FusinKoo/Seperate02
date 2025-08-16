@@ -7,7 +7,7 @@ export LC_ALL=C.UTF-8
 usage() {
   cat <<'USAGE'
 Usage: scripts/gdrive_pull_inputs.sh [--dry-run]
-Desc : 递归扫描 ${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs/ 并将新歌拉取至 ${SS_INBOX}；
+Desc : 递归扫描远端 songs/ 并将新歌拉取至 ${SS_INBOX}；
        自动生成 slug、创建 .lock/.src。
 Env  : SS_GDRIVE_REMOTE, SS_GDRIVE_ROOT, SS_INBOX, SS_WORK
 Options:
@@ -36,7 +36,13 @@ ensure_vol_mount
 SS_INBOX=${SS_INBOX:-/vol/inbox}
 SS_WORK=${SS_WORK:-/vol/work}
 SS_GDRIVE_REMOTE=${SS_GDRIVE_REMOTE:-gdrive}
-SS_GDRIVE_ROOT=${SS_GDRIVE_ROOT:-Seperate02}
+if [ -z "${SS_GDRIVE_ROOT+x}" ]; then
+  SS_GDRIVE_ROOT="Seperate02"
+fi
+_root="$SS_GDRIVE_ROOT"
+[ "$_root" = "." ] && _root=""
+REMOTE_PREFIX="${SS_GDRIVE_REMOTE}:${_root:+${_root}/}"
+echo "[DBG] REMOTE_PREFIX=${REMOTE_PREFIX}" >&2
 mkdir -p "$SS_INBOX" "$SS_WORK"
 
 is_audio(){ case "${1,,}" in *.wav|*.flac|*.m4a|*.mp3) return 0;; *) return 1;; esac }
@@ -45,11 +51,11 @@ is_audio(){ case "${1,,}" in *.wav|*.flac|*.m4a|*.mp3) return 0;; *) return 1;; 
 RCLONE_GLOBAL=(--tpslimit "${SS_RCLONE_TPS:-4}" --tpslimit-burst "${SS_RCLONE_TPS:-4}" --checkers "${SS_RCLONE_CHECKERS:-4}" --transfers "${SS_RCLONE_TRANSFERS:-2}" --fast-list --drive-chunk-size "${SS_RCLONE_CHUNK:-64M}")
 $DRY_RUN && RCLONE_GLOBAL+=(--dry-run)
 rclone_cmd(){ echo "+ rclone ${RCLONE_GLOBAL[*]} $*" >&2; rclone "${RCLONE_GLOBAL[@]}" "$@"; }
-mapfile -t FILES < <(rclone_cmd lsf -R --files-only "${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs" || true)
+mapfile -t FILES < <(rclone_cmd lsf -R --files-only "${REMOTE_PREFIX}songs" || true)
 
 for rel in "${FILES[@]:-}"; do
   [[ -n "$rel" ]] || continue
-  src_remote="${SS_GDRIVE_REMOTE}:${SS_GDRIVE_ROOT}/songs/${rel}"
+  src_remote="${REMOTE_PREFIX}songs/${rel}"
   fname="$(basename "$rel")"
   if ! is_audio "$fname"; then continue; fi
 

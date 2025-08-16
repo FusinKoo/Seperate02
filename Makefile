@@ -87,7 +87,7 @@ preflight:
 > @df -h / /vol || true
 > @echo "RCLONE_CONFIG=$$RCLONE_CONFIG"; test -f "$$RCLONE_CONFIG" || echo "[WARN] RCLONE_CONFIG 未设置"
 > bash scripts/sanity_check.sh || true
-> bash scripts/doctor_space.sh
+> bash scripts/doctor_space.sh || true
 
 setup-split:
 > @if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; else bash scripts/00_setup_env_split.sh; fi
@@ -118,6 +118,9 @@ lock-refresh:
 > pip-compile --generate-hashes -o requirements-locked.txt requirements-uvr.txt requirements-rvc.txt
 
 uv-setup:
+> if ! command -v uv >/dev/null 2>&1; then \
+>   echo "[ERR] uv not found. Set SS_USE_UV=0 or install uv first (https://github.com/astral-sh/uv)."; exit 2; \
+> fi
 > uv venv /vol/venvs/uvr
 > . /vol/venvs/uvr/bin/activate && uv pip install -r requirements-locked.txt
 
