@@ -13,7 +13,7 @@ SLUG=${1:-}
 [[ -n "${SLUG:-}" ]] || { usage; exit 2; }
 
 set +u; [ -f .env ] && . .env; set -u
-SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
+SS_WORK="$SS_WORK"; SS_MODELS_DIR="$SS_MODELS_DIR"; SS_UVR_VENV="${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="Kim_Vocal_2.onnx"
 WORK_DIR="$SS_WORK/$SLUG"; VOC="$WORK_DIR/01_vocals_mix.wav"
 [[ -f "$VOC" ]] || { echo "[ERR] $VOC not found"; exit 2; }

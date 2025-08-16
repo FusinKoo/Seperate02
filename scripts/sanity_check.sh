@@ -8,11 +8,6 @@ USAGE
 }
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
-SS_INBOX=${SS_INBOX:-/vol/inbox}
-SS_WORK=${SS_WORK:-/vol/work}
-SS_OUT=${SS_OUT:-/vol/out}
-SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
-SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
 
 command -v nvidia-smi >/dev/null && nvidia-smi || echo "[WARN] nvidia-smi not found; install NVIDIA drivers" >&2
 

@@ -9,7 +9,7 @@ fi
 # shellcheck source=env.sh
 source "$SCRIPT_DIR/env.sh"
 
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"; : "${SS_RVC_VENV:=/vol/venvs/rvc}"
+: "${SS_UVR_VENV:=${SS_VENVS_DIR}/uvr}"; : "${SS_RVC_VENV:=${SS_VENVS_DIR}/rvc}"
 UVR_BIN="$SS_UVR_VENV/bin"; RVC_BIN="$SS_RVC_VENV/bin"
 
 usage(){ cat <<USAGE

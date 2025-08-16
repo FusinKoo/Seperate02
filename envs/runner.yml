@@ -1,7 +1,11 @@
 name: runner
 channels:
   - conda-forge
+  - bioconda
 dependencies:
   - python=3.11
-  - snakemake>=7.32
-  - graphviz
+  - pip
+  - jq
+  - coreutils
+  # 放宽版本，避免“8.21 不存在”的求解故障
+  - snakemake-minimal>=8,<9

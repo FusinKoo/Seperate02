@@ -8,7 +8,6 @@ USAGE
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
 SLUG="$1"
-SS_OUT=${SS_OUT:-/vol/out}
 RVC_TAG=${SS_RVC_MODEL_TAG:-G_8200}
 OUTDIR="$SS_OUT/${SLUG}"
 BGM="${OUTDIR}/${SLUG}.instrumental.UVR-MDX-NET-Inst_HQ_3.wav"

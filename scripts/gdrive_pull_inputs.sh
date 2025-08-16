@@ -1,8 +1,16 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 set -euo pipefail
-export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/env.sh"
 export LC_ALL=C.UTF-8
+
+: "${SS_GDRIVE_REMOTE:=gdrive}"
+if ! rclone listremotes 2>/dev/null | grep -q "^${SS_GDRIVE_REMOTE}:"; then
+  echo "[ERR] rclone remote '${SS_GDRIVE_REMOTE}:' not found. Set SS_GDRIVE_REMOTE or configure rclone (RCLONE_CONFIG=$RCLONE_CONFIG)." >&2
+  exit 2
+fi
 
 usage() {
   cat <<'USAGE'
@@ -32,10 +40,6 @@ while [[ $# -gt 0 ]]; do
 done
 ensure_vol_mount
 
-# vars & dirs
-SS_INBOX=${SS_INBOX:-/vol/inbox}
-SS_WORK=${SS_WORK:-/vol/work}
-SS_GDRIVE_REMOTE=${SS_GDRIVE_REMOTE:-gdrive}
 if [ -z "${SS_GDRIVE_ROOT+x}" ]; then
   SS_GDRIVE_ROOT="Seperate02"
 fi
@@ -73,22 +77,14 @@ for rel in "${FILES[@]:-}"; do
     echo "[SKIP] exists: $local_final"; rm -f "$tmp_local"; continue
   fi
 
-  mv -f "$tmp_local" "$local_final"
-
-  # 工作目录与标记
-  workdir="${SS_WORK}/${slug}"; mkdir -p "$workdir"
-  : >"$workdir/.lock"  # 加锁
-  {
-    echo "remote_path=$src_remote"
-    echo "original_name=$fname"
-    echo "ext=$ext"
-    echo "slug=$slug"
-    echo "local_inbox_path=$local_final"
-    echo "ts_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-  } > "$workdir/.src"
-
-  echo "[PULLED] $fname → $local_final (slug=$slug)"
+  mv "$tmp_local" "$local_final"
+  lockdir="${SS_WORK}/${slug}"
+  mkdir -p "$lockdir"
+  touch "$lockdir/.lock"
+  cat > "$lockdir/.src" <<SRC
+remote_path=${src_remote}
+original_name=${fname}
+SRC
+  echo "[OK] pulled ${src_remote} -> ${local_final}"
 
 done
-
-echo "[DONE] gdrive_pull_inputs"

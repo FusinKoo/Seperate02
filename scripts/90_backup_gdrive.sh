@@ -7,7 +7,6 @@ USAGE
 }
 [[ "${1:-}" =~ ^(-h|--help)$ ]] && usage && exit 0
 
-SS_OUT=${SS_OUT:-/vol/out}
 REMOTE_ROOT="gdrive:Seperate02/out"
 
 rclone sync "$SS_OUT" "$REMOTE_ROOT" --transfers=8 --checkers=8 --fast-list --checksum --create-empty-src-dirs

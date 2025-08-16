@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 # step30 (STRICT): dereverb/denoise via UVR + Reverb_HQ_By_FoxJoy.onnx only.
 # - No fallback. Missing model or binary -> hard error.
-# - Output: /vol/work/<slug>/03_main_vocal_clean.wav
+# - Output: ${SS_WORK}/<slug>/03_main_vocal_clean.wav
 set -euo pipefail
 
 usage() {
   cat <<'USG'
 Usage: scripts/30_dereverb_denoise.sh <slug>
 Desc : Produce 03_main_vocal_clean.wav from 02_main_vocal.wav using UVR dereverb model.
-Env  : SS_WORK (/vol/work), SS_MODELS_DIR (/vol/models), SS_UVR_VENV (/vol/venvs/uvr),
+Env  : SS_WORK (${SS_WORK}), SS_MODELS_DIR (${SS_MODELS_DIR}), SS_UVR_VENV (${SS_VENVS_DIR}/uvr),
        SS_UVR_DEREVERB_MODEL (default: Reverb_HQ_By_FoxJoy.onnx),
        SS_UVR_USE_SOUNDFILE (optional: 1 to enable --use_soundfile)
 USG
@@ -19,9 +19,9 @@ SLUG=${1:-}
 
 # env
 set +u; [ -f .env ] && . .env; set -u
-SS_WORK="${SS_WORK:-/vol/work}"
-SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"
-SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
+SS_WORK="$SS_WORK"
+SS_MODELS_DIR="$SS_MODELS_DIR"
+SS_UVR_VENV="${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}"
 MODEL_DIR="${SS_MODELS_DIR}/UVR"
 MODEL_NAME="${SS_UVR_DEREVERB_MODEL:-Reverb_HQ_By_FoxJoy.onnx}"
 AS_BIN="${SS_UVR_VENV}/bin/audio-separator"

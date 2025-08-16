@@ -9,20 +9,20 @@ Options:
 Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+  bash scripts/run_one.sh <slug> ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 
 Ensure /vol is mounted before running. In Runpod UI:
   Stop Pod -> Attach Network Volume -> Mount path=/vol -> Start
 USG
 }
-: "${SS_UVR_VENV:=/vol/venvs/uvr}"
-: "${SS_RVC_VENV:=/vol/venvs/rvc}"
+: "${SS_UVR_VENV:=${SS_VENVS_DIR}/uvr}"
+: "${SS_RVC_VENV:=${SS_VENVS_DIR}/rvc}"
 : "${SS_CACHE_DIR:=/vol/.cache}"
 
 if [ "${SS_USE_UV:-0}" = "1" ] && command -v uv >/dev/null 2>&1; then
   echo "[INF] Using uv for installation"
-  uv venv "${SS_UVR_VENV:-/vol/venvs/uvr}"
-  . "${SS_UVR_VENV:-/vol/venvs/uvr}"/bin/activate
+  uv venv "${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}"
+  . "${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}"/bin/activate
   uv pip install -r requirements-locked.txt
   exit 0
 fi
@@ -38,7 +38,7 @@ print(f"cp{sys.version_info.major}{sys.version_info.minor}-{cuda}-{platform.syst
 PY
 }
 PROFILE="${SS_WHEEL_PROFILE:-$(mk_profile)}"
-WHEELBASE="${SS_WHEELHOUSE:-/vol/wheels}/${PROFILE}"
+WHEELBASE="${SS_WHEELHOUSE:-${SS_WHEELS_DIR}}/${PROFILE}"
 WH_UVR="${WHEELBASE}/uvr"; WH_RVC="${WHEELBASE}/rvc"; WH_LOCK="${WHEELBASE}/lock"
 
 if [[ "${SS_PIP_CACHE:-1}" -eq 1 ]]; then

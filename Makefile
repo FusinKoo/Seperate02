@@ -1,12 +1,11 @@
 .RECIPEPREFIX := >
 .PHONY: help setup-lock setup-split setup sanity dag demo env one pull batch push backup preflight doctor clean-cache index-first wheels-prepare wheels-pull wheels-push venv-clean hooks lock-refresh uv-setup uv-install
 
-SNAKE := micromamba run -n runner snakemake -s Snakefile
-
 CHECK_VOL := if ! mountpoint -q /vol; then echo "[WARN] /vol not mounted. Attach Network Volume at /vol"; fi
 
 help:
 > @$(CHECK_VOL)
+> @echo "Quick start: bash scripts/bootstrap.sh"
 > @echo "Targets:"
 > @echo "  setup-lock  - install deps via lock file"
 > @echo "  setup-split - install dual venvs"
@@ -33,10 +32,10 @@ setup-lock:
 > H=$$(grep -c -- '--hash=sha256:' requirements-locked.txt || true); \
   if [ "$$H" -gt 0 ]; then \
     echo "[INFO] using --require-hashes"; \
-    python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install --require-hashes -r requirements-locked.txt; \
+    python3 -m venv ${SS_VENVS_DIR}/uvr && ${SS_VENVS_DIR}/uvr/bin/pip install -U pip && ${SS_VENVS_DIR}/uvr/bin/pip install --require-hashes -r requirements-locked.txt; \
   else \
     echo "[WARN] no hashes in requirements-locked.txt; installing without --require-hashes"; \
-    python3 -m venv /vol/venvs/uvr && /vol/venvs/uvr/bin/pip install -U pip && /vol/venvs/uvr/bin/pip install -r requirements-locked.txt; \
+    python3 -m venv ${SS_VENVS_DIR}/uvr && ${SS_VENVS_DIR}/uvr/bin/pip install -U pip && ${SS_VENVS_DIR}/uvr/bin/pip install -r requirements-locked.txt; \
   fi
 
 setup:
@@ -46,25 +45,25 @@ setup:
 >   bash scripts/00_setup_env_split.sh; \
 > fi
 sanity:
-> @$(SNAKE) -n --cores 1 --printshellcmds
+> @./scripts/snk -s Snakefile -n --cores 1 --printshellcmds
 
 dag:
 > @mkdir -p audit
-> @$(SNAKE) -n --dag > audit/snakedag.dot
+> @./scripts/snk -s Snakefile -n --dag > audit/snakedag.dot
 > @command -v dot >/dev/null && dot -Tpng audit/snakedag.dot -o audit/snakedag.png || true
 
 demo:
-> bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+> bash scripts/run_one.sh ${SS_INBOX}/demo.wav ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 
 env:
-> @echo SS_INBOX=${SS_INBOX:-/vol/inbox}
-> @echo SS_WORK=${SS_WORK:-/vol/work}
-> @echo SS_OUT=${SS_OUT:-/vol/out}
-> @echo SS_MODELS_DIR=${SS_MODELS_DIR:-/vol/models}
-> @echo SS_ASSETS_DIR=${SS_ASSETS_DIR:-/vol/assets}
+> @echo SS_INBOX=${SS_INBOX}
+> @echo SS_WORK=${SS_WORK}
+> @echo SS_OUT=${SS_OUT}
+> @echo SS_MODELS_DIR=${SS_MODELS_DIR}
+> @echo SS_ASSETS_DIR=${SS_ASSETS_DIR}
 
 one:
-> @$(SNAKE) --cores 1 --resources gpus=1 -k --config slug=$(song)
+> @./scripts/snk -s Snakefile --cores 1 --resources gpus=1 -k --config slug=$(song)
 
 pull:
 > bash scripts/gdrive_pull_inputs.sh
@@ -88,7 +87,7 @@ wheels-push:
 > @bash scripts/wheels_push.sh
 
 venv-clean:
-> @rm -rf /vol/venvs/uvr /vol/venvs/rvc
+> @rm -rf ${SS_VENVS_DIR}/uvr ${SS_VENVS_DIR}/rvc
 
 preflight:
 > @mount | grep -E '[[:space:]]/vol[[:space:]]' || echo "[ERR] /vol 未挂载"
@@ -108,17 +107,17 @@ clean-cache:
 
 index-first:
 > @echo "Use scripts/70_build_index_from_wav.py to build index:"
-> @echo "  ${SS_RVC_VENV:-/vol/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"
+> @echo "  ${SS_RVC_VENV:-${SS_VENVS_DIR}/rvc}/bin/python scripts/70_build_index_from_wav.py --wav <in.wav> --out <out.index>"
 
 # --- Snakemake integration ---
 snk-dry:
-> $(SNAKE) --cores 1 -n --config slug=__dry__
+> ./scripts/snk -s Snakefile -n --cores 1 --printshellcmds --config slug="__ci_dryrun__" rvc_pth=IGNORE rvc_index=IGNORE rvc_ver=v2
 
 snk-run:
-> $(SNAKE) --profile profiles/runpod
+> ./scripts/snk -s Snakefile --cores 1 --printshellcmds
 
 snk-run-slug:
-> $(SNAKE) --profile profiles/runpod --config slug=$(slug)
+> ./scripts/snk -s Snakefile --cores 1 --config slug="$(slug)"
 
 .PHONY: lock-refresh
 lock-refresh:
@@ -129,11 +128,11 @@ uv-setup:
 > if ! command -v uv >/dev/null 2>&1; then \
 >   echo "[ERR] uv not found. Set SS_USE_UV=0 or install uv first (https://github.com/astral-sh/uv)."; exit 2; \
 > fi
-> uv venv /vol/venvs/uvr
-> . /vol/venvs/uvr/bin/activate && uv pip install -r requirements-locked.txt
+> uv venv ${SS_VENVS_DIR}/uvr
+> . ${SS_VENVS_DIR}/uvr/bin/activate && uv pip install -r requirements-locked.txt
 
 uv-install:
-> . /vol/venvs/uvr/bin/activate && uv pip install -r requirements-locked.txt
+> . ${SS_VENVS_DIR}/uvr/bin/activate && uv pip install -r requirements-locked.txt
 
 hooks:
 > pip install pre-commit

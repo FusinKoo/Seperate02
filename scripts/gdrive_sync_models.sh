@@ -1,6 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
-export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
+  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
+  exit 2
+fi
+# shellcheck source=env.sh
+source "$SCRIPT_DIR/env.sh"
+
+: "${SS_GDRIVE_REMOTE:=gdrive}"
+if ! rclone listremotes 2>/dev/null | grep -q "^${SS_GDRIVE_REMOTE}:"; then
+  echo "[ERR] rclone remote '${SS_GDRIVE_REMOTE}:' not found. Set SS_GDRIVE_REMOTE or configure rclone (RCLONE_CONFIG=$RCLONE_CONFIG)." >&2
+  exit 2
+fi
 
 usage() {
   cat <<USG
@@ -11,7 +24,7 @@ Options:
 Examples:
   make setup-split
   bash scripts/gdrive_sync_models.sh
-  bash scripts/run_one.sh <slug> /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+  bash scripts/run_one.sh <slug> ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 USG
 }
 ensure_vol_mount() {
@@ -32,13 +45,6 @@ while [[ $# -gt 0 ]]; do
 done
 ensure_vol_mount
 
-SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-if [[ ! -f "$SCRIPT_DIR/env.sh" ]]; then
-  echo "[FATAL] Missing $SCRIPT_DIR/env.sh" >&2
-  exit 2
-fi
-# shellcheck source=env.sh
-source "$SCRIPT_DIR/env.sh"
 if [ -z "${SS_GDRIVE_ROOT+x}" ]; then
   SS_GDRIVE_ROOT="Seperate02"
 fi
@@ -72,49 +78,9 @@ if [[ ! -f "$LOCAL_DEREV" ]]; then
   echo "[ERR] Then re-run: bash scripts/gdrive_sync_models.sh" >&2
   exit 90
 fi
-echo "[OK] found dereverb model: $LOCAL_DEREV"
+
+# normal sync
 if ! $CHECK_ONLY; then
-  rclone mkdir "$REMOTE_MODELS" "${RCLONE_OPTS[@]}" >/dev/null 2>&1 || true
-  rclone copy "$REMOTE_MODELS" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
-  if [[ "$REMOTE_ASSETS" != "$REMOTE_MODELS" ]]; then
-    rclone copy "$REMOTE_ASSETS" "$SS_ASSETS_DIR" --checksum "${RCLONE_OPTS[@]}"
-  fi
-
-  # relocate expected files from models/ if assets lived there
-  move_if_found(){
-    local name="$1" dest="$2"
-    local found
-    found=$(find "$LOCAL" -type f -name "$name" | head -n1 || true)
-    [ -n "$found" ] || return 0
-    if [ "$(readlink -f "$found")" = "$(readlink -f "$dest")" ]; then
-      return 0
-    fi
-    mkdir -p "$(dirname "$dest")"
-    mv -f "$found" "$dest"
-  }
-
-  move_if_found "UVR-MDX-NET-Inst_HQ_3.onnx" "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx"
-  move_if_found "Kim_Vocal_2.onnx" "$LOCAL/UVR/Kim_Vocal_2.onnx"
-  move_if_found "Reverb_HQ_By_FoxJoy.onnx" "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx"
-  move_if_found "G_8200.pth" "$LOCAL/RVC/G_8200.pth"
-  move_if_found "G_8200.index" "$LOCAL/RVC/G_8200.index"
-  move_if_found "hubert_base.pt" "$SS_ASSETS_DIR/hubert_base.pt"
-  move_if_found "rmvpe.onnx" "$SS_ASSETS_DIR/rmvpe.onnx"
+  rclone sync "$REMOTE_MODELS" "$LOCAL" --checksum "${RCLONE_OPTS[@]}"
+  rclone sync "$REMOTE_ASSETS" "$SS_ASSETS_DIR" --checksum "${RCLONE_OPTS[@]}"
 fi
-
-missing=()
-[[ -f "$LOCAL/UVR/UVR-MDX-NET-Inst_HQ_3.onnx" ]] || missing+=("UVR-MDX-NET-Inst_HQ_3.onnx")
-[[ -f "$LOCAL/UVR/Kim_Vocal_2.onnx" ]] || missing+=("Kim_Vocal_2.onnx")
-[[ -f "$LOCAL/UVR/Reverb_HQ_By_FoxJoy.onnx" ]] || missing+=("Reverb_HQ_By_FoxJoy.onnx")
-[[ -f "$LOCAL/RVC/G_8200.pth" ]] || missing+=("G_8200.pth")
-[[ -f "$LOCAL/RVC/G_8200.index" ]] || missing+=("G_8200.index")
-[[ -f "$SS_ASSETS_DIR/hubert_base.pt" ]] || missing+=("hubert_base.pt")
-[[ -f "$SS_ASSETS_DIR/rmvpe.onnx" ]] || missing+=("rmvpe.onnx")
-
-if [ ${#missing[@]} -ne 0 ]; then
-  echo "[ERR] Missing models: ${missing[*]}" >&2
-  echo "[ERR] Please upload missing files to ${REMOTE_PREFIX}models/" >&2
-  exit 1
-fi
-
-echo "[OK] Models synced to $LOCAL and $SS_ASSETS_DIR"

@@ -11,7 +11,7 @@ USE_SF=${SS_UVR_USE_SOUNDFILE:-1}
 case "${1:-}" in -h|--help) usage; exit 0;; --use-soundfile) USE_SF=1; shift;; esac
 IN=${1:-}; SLUG=${2:-}; [[ -f "${IN:-}" && -n "${SLUG:-}" ]] || { usage; exit 2; }
 set +u; [ -f .env ] && . .env; set -u
-SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
+SS_WORK="$SS_WORK"; SS_MODELS_DIR="$SS_MODELS_DIR"; SS_UVR_VENV="${SS_UVR_VENV:-${SS_VENVS_DIR}/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"
 WORK_DIR="$SS_WORK/$SLUG"; mkdir -p "$WORK_DIR"
   cmd=( "$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV

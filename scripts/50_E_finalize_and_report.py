@@ -26,9 +26,10 @@ if _env_lead is not None:
     print('[WRN] contract overridden by env SS_TARGET_LUFS_LEAD', file=sys.stderr)
     TARGET_LUFS_LEAD = float(_env_lead)
 
-SS_WORK = os.getenv('SS_WORK', '/vol/work')
-SS_OUT = os.getenv('SS_OUT', '/vol/out')
-SS_MODELS_DIR = os.getenv('SS_MODELS_DIR', '/vol/models')
+SS_BASE = os.getenv('SS_BASE', '/workspace')
+SS_WORK = os.getenv('SS_WORK', f'{SS_BASE}/work')
+SS_OUT = os.getenv('SS_OUT', f'{SS_BASE}/out')
+SS_MODELS_DIR = os.getenv('SS_MODELS_DIR', f'{SS_BASE}/models')
 
 
 def sha256(path: str):

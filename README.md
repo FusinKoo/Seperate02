@@ -94,7 +94,7 @@ Seperate02/
 
 ## 快速开始（Quick Start）
 
-必须先挂载 /vol（Network Volume）
+默认根目录为 `/workspace`，可通过 `SS_BASE` 覆盖；脚本会自动兼容 `/vol`。
 
 ### 最短命令示例
 
@@ -107,17 +107,17 @@ Seperate02/
 
 * **Container Disk**：10–20 GiB
 * **Volume Disk**：≥100 GiB，挂载路径固定 `/vol`
-* `/workspace` 为容器根盘，重建后内容会丢失；`/vol` 为持久网络盘，模型和缓存应全部放在 `/vol`
+* `/workspace` 为容器根盘，重建后内容会丢失；推荐将持久网络盘挂载于 `/vol` 并设置 `SS_BASE=/vol`（脚本会自动创建兼容链接）
 * 容器初始化后先运行 `make preflight` 检查环境与空间
 
 > **提示**：长命令可通过 `\` 分行，或使用 `tmux` 保持会话。
 
 ### OAuth 推荐配置
 
-建议使用私有 OAuth 客户端或 Service Account，在本地执行 `rclone authorize "drive"` 生成配置，将结果写入 `/vol/rclone/rclone.conf` 并设置：
+建议使用私有 OAuth 客户端或 Service Account，在本地执行 `rclone authorize "drive"` 生成配置，将结果写入 `$SS_BASE/rclone/rclone.conf` 并设置：
 
 ```bash
-export RCLONE_CONFIG=/vol/rclone/rclone.conf
+export RCLONE_CONFIG=$SS_BASE/rclone/rclone.conf
 ```
 
 `rclone.conf` 样例：
@@ -145,44 +145,44 @@ export RCLONE_CONFIG=/vol/rclone/rclone.conf
 # 0) 体检与空间
 make preflight # 不足则 make clean-cache
 
-# 1) 安装到 /vol（双环境）
+# 1) 安装到 $SS_BASE（双环境）
 make setup-split
 
-# 2) 模型同步到 /vol
-RCLONE_CONFIG=/vol/rclone/rclone.conf bash scripts/gdrive_sync_models.sh
+# 2) 模型同步到 $SS_BASE
+RCLONE_CONFIG=$SS_BASE/rclone/rclone.conf bash scripts/gdrive_sync_models.sh
 
 # 3) Index 先行（可选）
 "$SS_RVC_VENV/bin/python" scripts/70_build_index_from_wav.py \
-  --wav /vol/inbox/my_voice_clean.wav \
-  --out /vol/models/RVC/G_8200.index
-rclone copy /vol/models/RVC/G_8200.index gdrive:Seperate02/models --checksum
+  --wav ${SS_INBOX}/my_voice_clean.wav \
+  --out ${SS_MODELS_DIR}/RVC/G_8200.index
+rclone copy ${SS_MODELS_DIR}/RVC/G_8200.index gdrive:Seperate02/models --checksum
 
 # 4) 拉歌并运行
 bash scripts/gdrive_pull_inputs.sh
-slug=$(find /vol/work -mindepth 2 -maxdepth 2 -name .lock -printf '%h\n' | sed -n '1p' | xargs -I{} basename {})
-bash scripts/run_one.sh "$slug" /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index v2
+slug=$(find ${SS_WORK} -mindepth 2 -maxdepth 2 -name .lock -printf '%h\n' | sed -n '1p' | xargs -I{} basename {})
+bash scripts/run_one.sh "$slug" ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index v2
 ```
 
 ### 自检
 
 ```bash
 # UVR
-/vol/venvs/uvr/bin/audio-separator --version || echo "[MISS] audio-separator"
+${SS_VENVS_DIR}/uvr/bin/audio-separator --version || echo "[MISS] audio-separator"
 
 # RVC
-/vol/venvs/rvc/bin/python - <<'PY'
+${SS_VENVS_DIR}/rvc/bin/python - <<'PY'
 import numpy as np, torch
 print("NumPy:", np.__version__)
 print("Torch:", torch.__version__, "CUDA:", torch.cuda.is_available())
 PY
-(/vol/venvs/rvc/bin/rvc --help | head -n 3) || (/vol/venvs/rvc/bin/python -m rvc --help | head -n 3) || echo "[MISS] rvc"
+(${SS_VENVS_DIR}/rvc/bin/rvc --help | head -n 3) || (${SS_VENVS_DIR}/rvc/bin/python -m rvc --help | head -n 3) || echo "[MISS] rvc"
 # 正则检查
 rg -n -e '-ac(=| )2| -ar(=| )48000|pcm_s16le' scripts/20_extract_main.sh
 ```
 
 ### 挂载与路径
 
-所有虚拟环境、模型、缓存、临时文件等重资产均位于挂载的 Network Volume `/vol`，运行前请确保该路径已存在。
+所有虚拟环境、模型、缓存、临时文件等重资产均位于 `$SS_BASE`（默认 `/workspace`，可指向挂载卷如 `/vol`），运行前请确保该路径已存在。
 
 ### 低空间环境策略
 
@@ -213,7 +213,7 @@ source scripts/env.sh           # 加载 .env
 4. **运行单首歌曲**
 
 ```bash
-bash scripts/run_one.sh /vol/inbox/demo.wav /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index
+bash scripts/run_one.sh ${SS_INBOX}/demo.wav ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index
 # 或已配置 .env 后：
 bash scripts/run_one.sh demo
 ```
@@ -221,7 +221,7 @@ bash scripts/run_one.sh demo
 5. **批量处理（可选）**
 
 ```bash
-bash scripts/run_batch.sh /vol/models/RVC/G_8200.pth /vol/models/RVC/G_8200.index
+bash scripts/run_batch.sh ${SS_MODELS_DIR}/RVC/G_8200.pth ${SS_MODELS_DIR}/RVC/G_8200.index
 ```
 
 脚本输出包括：
@@ -277,7 +277,7 @@ UVR 使用 `audio-separator 0.35.2`，参数映射：`--chunk`=分块大小、`-
 ### Index 先行剧本
 
 1. 上传清洁的人声 WAV 至 `inbox`
-2. 生成 Index：`${SS_RVC_VENV:-/vol/venvs/rvc}/bin/python scripts/70_build_index_from_wav.py --wav /vol/inbox/my_voice_clean.wav --out /vol/models/RVC/G_8200.index`
+2. 生成 Index：`${SS_RVC_VENV:-${SS_VENVS_DIR}/rvc}/bin/python scripts/70_build_index_from_wav.py --wav ${SS_INBOX}/my_voice_clean.wav --out ${SS_MODELS_DIR}/RVC/G_8200.index`
 3. 使用 `rclone copy` 将生成的 `.index` 回传
 
 
@@ -297,10 +297,10 @@ bash scripts/run_batch.sh <rvc_pth> <index> [v1|v2]
 ### `.env.example` 示例
 
 ```dotenv
-SS_MODELS_DIR=/vol/models
-SS_INBOX=/vol/inbox
-SS_WORK=/vol/work
-SS_OUT=/vol/out
+SS_MODELS_DIR=${SS_MODELS_DIR}
+SS_INBOX=${SS_INBOX}
+SS_WORK=${SS_WORK}
+SS_OUT=${SS_OUT}
 # ONNX Runtime providers 顺序（显卡优先，CPU 兜底）
 SS_ORT_PROVIDERS=CUDA,CPU
 # 并行度（批量层面）；同一首歌始终串行

@@ -10,7 +10,7 @@ def check_deps():
         except Exception:
             missing.append(m)
     if missing:
-        pip = f"{os.getenv('SS_RVC_VENV', '/vol/venvs/rvc')}/bin/pip"
+        pip = f"{os.getenv('SS_RVC_VENV', os.getenv('SS_BASE', '/workspace') + '/venvs/rvc')}/bin/pip"
         print(f"[ERR] missing deps: {', '.join(missing)}", file=sys.stderr)
         print(f"[ERR] run `{pip} install --no-cache-dir faiss-cpu transformers librosa soundfile`", file=sys.stderr)
         sys.exit(1)

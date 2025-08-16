@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-export RCLONE_CONFIG="${RCLONE_CONFIG:-/vol/rclone/rclone.conf}"
+
+SCRIPT_DIR="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/env.sh"
 PROFILE="${SS_WHEEL_PROFILE:-$(python3 - <<'PY'
 import sys,platform
 print(f"cp{sys.version_info.major}{sys.version_info.minor}-" +
@@ -8,7 +10,7 @@ print(f"cp{sys.version_info.major}{sys.version_info.minor}-" +
       f"{platform.system().lower()}_{platform.machine()}")
 PY
 )}"
-BASE="${SS_WHEELHOUSE:-/vol/wheels}/${PROFILE}"
+BASE="${SS_WHEELHOUSE:-${SS_WHEELS_DIR}}/${PROFILE}"
 REMOTE="${SS_WHEELS_REMOTE:?missing SS_WHEELS_REMOTE}/${PROFILE}"
 
 [[ -d "$BASE" ]] || { echo "[ERR] local wheelhouse missing: $BASE"; exit 2; }
