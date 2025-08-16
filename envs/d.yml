@@ -6,7 +6,7 @@ channels:
 dependencies:
   - python=3.11
   - ffmpeg
-  - pip
   - pytorch
+  - pip
   - pip:
-      - rvc-python
+      - rvc-python==0.1.*

@@ -14,8 +14,8 @@ set +u; [ -f .env ] && . .env; set -u
 SS_WORK="${SS_WORK:-/vol/work}"; SS_MODELS_DIR="${SS_MODELS_DIR:-/vol/models}"; SS_UVR_VENV="${SS_UVR_VENV:-/vol/venvs/uvr}"
 UVR_BIN="$SS_UVR_VENV/bin/audio-separator"; MODEL_DIR="$SS_MODELS_DIR/UVR"; MODEL="UVR-MDX-NET-Inst_HQ_3.onnx"
 WORK_DIR="$SS_WORK/$SLUG"; mkdir -p "$WORK_DIR"
-cmd=( "$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV
-      --mdx_segment_size 10 --mdx_overlap 5 --normalization 1.0 --amplification 0 )
+  cmd=( "$UVR_BIN" -m "$MODEL" --model_file_dir "$MODEL_DIR" --output_dir "$WORK_DIR" --output_format WAV
+        --mdx_segment_size 10 --mdx_overlap 5 --fade_overlap hann --normalization 1.0 --amplification 0 )
 [[ "$USE_SF" == "1" ]] && cmd+=( --use_soundfile )
 "${cmd[@]}" "$IN"
 shopt -s nullglob
